@@ -1,3 +1,4 @@
+
 #![warn(clippy::all, clippy::pedantic)]
 // #![warn(clippy::cargo)]
 #![allow(
