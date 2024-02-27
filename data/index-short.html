@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ <title>Darwin Configuration Options</title>
+<link rel="stylesheet" type="text/css" href="style.css" /><link rel="stylesheet" type="text/css" href="overrides.css" /><link rel="stylesheet" type="text/css" href="highlightjs/mono-blue.css" />
+<script src="./highlightjs/highlight.pack.js" type="text/javascript"></script><script src="./highlightjs/loader.js" type="text/javascript"></script>
+ <meta name="generator" content="nixos-render-docs 23.05pre492905.a1982c92d898" />
+ <link rel="home" href="index.html" title="Darwin Configuration Options" />
+ 
+ </head>
+ <body>
+  <div class="navheader">
+   <table width="100%" summary="Navigation header">
+    <tr>
+    <th colspan="3" align="center">Darwin Configuration Options</th>
+    </tr>
+    <tr>
+    <td width="20%" align="left">&nbsp;</td>
+    <th width="60%" align="center">&nbsp;</th>
+    <td width="20%" align="right">&nbsp;</td>
+    </tr>
+   </table>
+   <hr />
+  </div>
+ <div class="book">
+  <div class="titlepage">
+   <div>
+   <div><h1 class="title"><a id="book-darwin-manual"></a>Darwin Configuration Options</h1></div>
+   <div><h2 class="subtitle">Version darwin4.0e6857f</h2></div>
+   </div>
+   <hr />
+  </div>
+
+<div class="variablelist">
+<a id="configuration-variable-list"></a>
+ <dl class="variablelist">
+
+<dt>
+ <span class="term">
+ <a id="opt-homebrew.caskArgs"></a><a class="term" href="index.html#opt-homebrew.caskArgs"><code class="option">homebrew.caskArgs</code>
+  </a>
+ </span>
+</dt>
+<dd>
+<p>Arguments passed to <span class="command"><strong>brew install --cask</strong></span> for all casks listed in
+<a class="xref" href="index.html#opt-homebrew.casks"  ><code class="option">homebrew.casks</code></a>.</p>
+
+<p><span class="emphasis"><em>Type:</em></span>
+submodule</p>
+
+<p><span class="emphasis"><em>Default:</em></span>
+<code class="literal">{ }</code></p>
+
+<p><span class="emphasis"><em>Example:</em></span></p><pre class="programlisting">{
+  appdir = &quot;~/Applications&quot;;
+  require_sha = true;
+}
+
+</pre>
+
+<p><span class="emphasis"><em>Declared by:</em></span></p>
+<table border="0" summary="Simple list" class="simplelist">
+<tr><td>
+<code class="filename"><a class="filename"  href="https://github.com/LnL7/nix-darwin/blob/0e6857fa1d632637488666c08e7b02c08e3178f8/modules/homebrew.nix" target="_top">
+&lt;nix-darwin/modules/homebrew.nix&gt;
+</a></code>
+</td></tr>
+</table>
+</dd>
+<dt>
+ <span class="term">
+ <a id="opt-documentation.enable"></a><a class="term" href="index.html#opt-documentation.enable"><code class="option">documentation.enable</code>
+  </a>
+ </span>
+</dt>
+<dd>
+<p>Whether to install documentation of packages from
+<code class="option">environment.systemPackages</code> into the generated system path.</p><p>See “Multiple-output packages” chapter in the nixpkgs manual for more info.</p>
+
+<p><span class="emphasis"><em>Type:</em></span>
+boolean</p>
+
+<p><span class="emphasis"><em>Default:</em></span>
+<code class="literal">true</code></p>
+
+<p><span class="emphasis"><em>Declared by:</em></span></p>
+<table border="0" summary="Simple list" class="simplelist">
+<tr><td>
+<code class="filename"><a class="filename"  href="https://github.com/LnL7/nix-darwin/blob/0e6857fa1d632637488666c08e7b02c08e3178f8/modules/documentation" target="_top">
+&lt;nix-darwin/modules/documentation&gt;
+</a></code>
+</td></tr>
+</table>
+</dd>
+
+<dt>
+ <span class="term">
+ <a id="opt-documentation.doc.enable"></a><a class="term" href="index.html#opt-documentation.doc.enable"><code class="option">documentation.doc.enable</code>
+  </a>
+ </span>
+</dt>
+<dd>
+<p>Whether to install documentation distributed in packages’ <code class="literal">/share/doc</code>.
+Usually plain text and/or HTML.
+This also includes “doc” outputs.</p>
+
+<p><span class="emphasis"><em>Type:</em></span>
+boolean</p>
+
+<p><span class="emphasis"><em>Default:</em></span>
+<code class="literal">true</code></p>
+
+<p><span class="emphasis"><em>Declared by:</em></span></p>
+<table border="0" summary="Simple list" class="simplelist">
+<tr><td>
+<code class="filename"><a class="filename"  href="https://github.com/LnL7/nix-darwin/blob/0e6857fa1d632637488666c08e7b02c08e3178f8/modules/documentation" target="_top">
+&lt;nix-darwin/modules/documentation&gt;
+</a></code>
+</td></tr>
+</table>
+</dd>
+ </dl>
+</div>
+ </div>
+  <div class="navfooter">
+   <hr />
+   <table width="100%" summary="Navigation footer">
+    <tr>
+    <td width="40%" align="left">&nbsp;</td>
+    <td width="20%" align="center">&nbsp;</td>
+    <td width="40%" align="right">&nbsp;</td>
+    </tr>
+    <tr>
+     <td width="40%" align="left" valign="top">&nbsp;</td>
+     <td width="20%" align="center">&nbsp;</td>
+     <td width="40%" align="right" valign="top">&nbsp;</td>
+    </tr>
+   </table>
+  </div>
+ </body>
+</html>
