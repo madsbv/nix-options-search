@@ -1,3 +1,10 @@
+#![warn(clippy::all, clippy::pedantic)]
+// #![warn(clippy::cargo)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::struct_excessive_bools
+)]
 use anyhow::Result;
 use tl::{NodeHandle, Parser, VDom};
 
@@ -50,11 +57,10 @@ impl OptDataParser<'_> {
         let name = self.get_name();
         // TODO: We'll make the fields of OptData Option and remove a bunch of these unwrap_or_else
         // TODO: It might be better to have get_field_by_separator consume the sections it uses, and debug_assert that there's one left, which we'll feed into description at the end
-        let description = match tag_slices.get(0) {
-            Some(s) => Some(self.get_field(s)),
-            _ => None,
-        }
-        .unwrap_or_default();
+        let description = tag_slices
+            .first()
+            .map(|s| self.get_field(s))
+            .unwrap_or_default();
         let var_type = self
             .get_field_by_separator(&tag_slices, OptDataParser::separator_tags()[0])
             .unwrap_or_default();
@@ -89,7 +95,7 @@ impl OptDataParser<'_> {
     }
 
     // TODO: We might want to make this into a slightly more refined HTML flattener, in particular treating different HTML tags differently.
-    fn get_field(&self, section: &Vec<tl::HTMLTag>) -> String {
+    fn get_field(&self, section: &[tl::HTMLTag]) -> String {
         section
             .iter()
             .map(|t| t.inner_text(self.p))
@@ -102,7 +108,7 @@ impl OptDataParser<'_> {
         tag: &str,
     ) -> Option<String> {
         for section in split_tags {
-            if let Some(t) = section.get(0) {
+            if let Some(t) = section.first() {
                 if t.inner_html(self.p).contains(tag) {
                     return Some(self.get_field(section));
                 }
@@ -111,8 +117,8 @@ impl OptDataParser<'_> {
         None
     }
 
-    fn split_tags<'a>(&'a self, // OMG the TYPES
-    ) -> Vec<Vec<tl::HTMLTag<'a>>> {
+    fn split_tags(&self, // OMG the TYPES
+    ) -> Vec<Vec<tl::HTMLTag<'_>>> {
         // Can we simplify this unholy incantation?
         let dd_tags = self
             .dd
@@ -135,7 +141,7 @@ impl OptDataParser<'_> {
                     .any(|a| t.inner_html(self.p).contains(a))
             })
             .rev()
-            .map(|s| s.into_iter().rev().collect::<Vec<_>>())
+            .map(|s| s.iter().rev().collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
         // TODO: Fix all of the type nonsense down here
