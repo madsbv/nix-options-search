@@ -5,6 +5,7 @@ edition = "2021"
 description = "A tool to fuzzy find nix-darwin and nixOS configuration options"
 repository = "https://github.com/madsbv/nix-options-search"
 license = "MIT OR Apache-2.0"
+include = ["src/main.rs", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
