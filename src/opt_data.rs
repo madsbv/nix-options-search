@@ -1,0 +1,145 @@
+use tl::{HTMLTag, NodeHandle, Parser};
+
+#[derive(Clone, Debug)]
+pub struct OptData<'a> {
+    name: Vec<HTMLTag<'a>>,
+    description: Vec<HTMLTag<'a>>,
+    var_type: Vec<HTMLTag<'a>>,
+    default: Vec<HTMLTag<'a>>,
+    example: Vec<HTMLTag<'a>>,
+    declared_by: Vec<HTMLTag<'a>>,
+    p: &'a Parser<'a>,
+}
+
+impl OptData<'_> {
+    // TODO: We might want to make this into a slightly more refined HTML flattener, in particular treating different HTML tags differently.
+    // It's also entirely possible that we'll want to store the raw tags instead of concatenating into a string.
+    // NOTE: All conversion of HTMLTags to String goes through this function.
+    fn field_to_string(&self, section: &[HTMLTag]) -> String {
+        section
+            .iter()
+            .map(|t| t.inner_html(self.p))
+            .fold(String::new(), |acc, e| acc + "\n" + &e)
+    }
+}
+
+impl std::fmt::Display for OptData<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}",
+            self.field_to_string(&self.name),
+            self.field_to_string(&self.description),
+            self.field_to_string(&self.var_type),
+            self.field_to_string(&self.default),
+            self.field_to_string(&self.example),
+            self.field_to_string(&self.declared_by)
+        )
+    }
+}
+
+#[derive(Debug)]
+pub struct OptParser<'a> {
+    dt: NodeHandle,
+    dd: NodeHandle,
+    p: &'a Parser<'a>,
+}
+
+impl<'dom> OptParser<'dom> {
+    pub fn new<'a>(dt: NodeHandle, dd: NodeHandle, p: &'a Parser) -> OptParser<'a> {
+        OptParser { dt, dd, p }
+    }
+
+    pub fn parse(self) -> OptData<'dom> {
+        let mut tag_slices = self.split_tags();
+        let name = self.get_name();
+        // TODO: We'll make the fields of OptData Option and remove a bunch of these unwrap_or_else
+        // TODO: It might be better to have get_field_by_separator consume the sections it uses, and debug_assert that there's one left, which we'll feed into description at the end
+        let var_type = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[0]);
+        let default = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[1]);
+        let example = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[2]);
+        let declared_by =
+            self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[3]);
+        let description = tag_slices
+            .into_iter()
+            .fold(vec![], |acc, e| [acc, e].concat());
+
+        OptData {
+            name,
+            description,
+            var_type,
+            default,
+            example,
+            declared_by,
+            p: self.p,
+        }
+    }
+
+    fn separator_tags() -> [&'static str; 4] {
+        [
+            r#"<span class="emphasis"><em>Type:</em></span>"#,
+            r#"<span class="emphasis"><em>Default:</em></span>"#,
+            r#"<span class="emphasis"><em>Example:</em></span>"#,
+            r#"<span class="emphasis"><em>Declared by:</em></span>"#,
+        ]
+    }
+
+    // Might want to unify this with self.get_field().
+    fn get_name(&'_ self) -> Vec<HTMLTag<'dom>> {
+        self.dt
+            .get(self.p)
+            .unwrap()
+            .children() // <- Creates owned struct tl::Children
+            .unwrap()
+            .top()
+            .iter()
+            .filter_map(|n| n.get(self.p)?.as_tag().cloned())
+            .collect::<Vec<_>>()
+    }
+
+    fn get_field_by_separator(
+        &'_ self,
+        split_tags: &'_ mut Vec<Vec<HTMLTag<'dom>>>,
+        tag: &str,
+    ) -> Vec<HTMLTag<'dom>> {
+        for i in 0..split_tags.len() {
+            if let Some(t) = split_tags[i].first() {
+                if t.inner_html(self.p).contains(tag) {
+                    return split_tags.swap_remove(i);
+                }
+            }
+        }
+        vec![]
+    }
+
+    fn split_tags(&self, // OMG the TYPES
+    ) -> Vec<Vec<HTMLTag<'dom>>> {
+        // Can we simplify this unholy incantation?
+        let dd_tags = self
+            .dd
+            .get(self.p)
+            .unwrap()
+            .children() // <- Creates owned struct tl::Children
+            .unwrap()
+            .top()
+            .iter()
+            .filter_map(|n| n.get(self.p)?.as_tag())
+            .collect::<Vec<_>>();
+
+        // split_inclusive puts the matched element at the end of the previous slice. We want the matched element at the beginning of the slice. To fix, we reverse the entire list, split_inclusive, then reverse both the outer list and each of the inner lists created by split_inclusive.
+        let rev_tags: Vec<_> = dd_tags.into_iter().rev().collect();
+        // vector of vectors, in the right order
+        rev_tags
+            // Split slice into slice of slices with separator_tags as terminators
+            .split_inclusive(|t| {
+                OptParser::separator_tags()
+                    .iter()
+                    .any(|a| t.inner_html(self.p).contains(a))
+            })
+            // Reverse outer
+            .rev()
+            // Reverse each inner and clone
+            .map(|s| s.iter().rev().copied().cloned().collect::<Vec<_>>())
+            .collect::<Vec<_>>()
+    }
+}
