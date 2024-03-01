@@ -1,4 +1,28 @@
-use tl::{HTMLTag, NodeHandle, Parser};
+use tl::{HTMLTag, NodeHandle, Parser, VDom};
+
+// TODO: Consider using https://github.com/jugglerchris/rust-html2text to provide a nice text output format for TUI use.
+// Also define multiple output formats from an OptData.
+
+/// Structure of data/index.html (nix-darwin): Each option header is in a <dt>, associated description, type, default, example and link to docs is in a <dd>.
+/// This method assumes that there's an equal number of <dt> and <dd> tags, and that they come paired up one after the other. If the number of <dt> and <dd> tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
+pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Vec<OptData<'dom>> {
+    let p = dom.parser();
+    let dts = dom
+        .query_selector("dt")
+        .expect("dt is a valid CSS selector")
+        .collect::<Vec<_>>();
+    let dds = dom
+        .query_selector("dd")
+        .expect("dd is a valid CSS selector")
+        .collect::<Vec<_>>();
+
+    // TODO: Should we panic, or return a Result type?
+    assert_eq!(dts.len(), dds.len());
+
+    std::iter::zip(dts, dds)
+        .map(|(dt, dd)| OptParser::new(dt, dd, p).parse())
+        .collect()
+}
 
 #[derive(Clone, Debug)]
 pub struct OptData<'a> {
@@ -11,14 +35,13 @@ pub struct OptData<'a> {
     p: &'a Parser<'a>,
 }
 
+// TODO: Implement functions to output OptData in other formats, including raw HTML or with rust-html2text.
 impl OptData<'_> {
-    // TODO: We might want to make this into a slightly more refined HTML flattener, in particular treating different HTML tags differently.
-    // It's also entirely possible that we'll want to store the raw tags instead of concatenating into a string.
     // NOTE: All conversion of HTMLTags to String goes through this function.
     fn field_to_string(&self, section: &[HTMLTag]) -> String {
         section
             .iter()
-            .map(|t| t.inner_html(self.p))
+            .map(|t| t.inner_text(self.p))
             .fold(String::new(), |acc, e| acc + "\n" + &e)
     }
 }
@@ -46,7 +69,7 @@ pub struct OptParser<'a> {
 }
 
 impl<'dom> OptParser<'dom> {
-    pub fn new<'a>(dt: NodeHandle, dd: NodeHandle, p: &'a Parser) -> OptParser<'a> {
+    pub fn new(dt: NodeHandle, dd: NodeHandle, p: &'dom Parser) -> OptParser<'dom> {
         OptParser { dt, dd, p }
     }
 
