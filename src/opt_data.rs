@@ -1,25 +1,22 @@
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
 
-// TODO: Consider using https://github.com/jugglerchris/rust-html2text to provide a nice text output format for TUI use.
-// Also define multiple output formats from an OptData.
-
 /// Structure of data/index.html (nix-darwin): Each option header is in a <dt>, associated description, type, default, example and link to docs is in a <dd>.
 /// This method assumes that there's an equal number of <dt> and <dd> tags, and that they come paired up one after the other. If the number of <dt> and <dd> tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
 pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Vec<OptData<'dom>> {
     let p = dom.parser();
-    let dts = dom
+    let dt_tags = dom
         .query_selector("dt")
         .expect("dt is a valid CSS selector")
         .collect::<Vec<_>>();
-    let dds = dom
+    let dd_tags = dom
         .query_selector("dd")
         .expect("dd is a valid CSS selector")
         .collect::<Vec<_>>();
 
     // TODO: Should we panic, or return a Result type?
-    assert_eq!(dts.len(), dds.len());
+    assert_eq!(dt_tags.len(), dd_tags.len());
 
-    std::iter::zip(dts, dds)
+    std::iter::zip(dt_tags, dd_tags)
         .map(|(dt, dd)| OptParser::new(dt, dd, p).parse())
         .collect()
 }
@@ -35,13 +32,13 @@ pub struct OptData<'a> {
     p: &'a Parser<'a>,
 }
 
-// TODO: Implement functions to output OptData in other formats, including raw HTML or with rust-html2text.
+use nanohtml2text::html2text;
 impl OptData<'_> {
     // NOTE: All conversion of HTMLTags to String goes through this function.
     fn field_to_string(&self, section: &[HTMLTag]) -> String {
         section
             .iter()
-            .map(|t| t.inner_text(self.p))
+            .map(|t| html2text(&t.outer_html(self.p)))
             .fold(String::new(), |acc, e| acc + "\n" + &e)
     }
 }
@@ -50,7 +47,7 @@ impl std::fmt::Display for OptData<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}",
+            "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}\n--------------",
             self.field_to_string(&self.name),
             self.field_to_string(&self.description),
             self.field_to_string(&self.var_type),

@@ -3,7 +3,8 @@
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
-    clippy::struct_excessive_bools
+    clippy::struct_excessive_bools,
+    clippy::similar_names
 )]
 
 use anyhow::Result;
@@ -34,21 +35,16 @@ fn main() -> Result<()> {
     }
     eprintln!("{}", inj.injected_items());
 
-    nuc.pattern.reparse(
-        0,
-        &pattern,
-        CaseMatching::Smart,
-        Normalization::Smart,
-        false,
-    );
+    nuc.pattern
+        .reparse(0, pattern, CaseMatching::Smart, Normalization::Smart, false);
 
     nuc.tick(10);
 
     let snap = nuc.snapshot();
     let n = snap.matched_item_count();
-    eprintln!("{}", n);
+    eprintln!("{n}");
     for m in snap.matched_items(0..n) {
-        eprintln!("{}\n{:?}", m.data, m.matcher_columns);
+        eprintln!("{}", m.data);
     }
     // let matches = fuzzy_match(pattern, opt_strings);
 
