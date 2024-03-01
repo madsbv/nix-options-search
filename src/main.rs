@@ -7,42 +7,76 @@
 )]
 
 use anyhow::Result;
-use tl::VDom;
+use nucleo::pattern::{Atom, AtomKind, CaseMatching, Normalization};
+use nucleo::Config;
 
 mod opt_data;
-use opt_data::{OptData, OptParser};
+use opt_data::{parse_options, OptData};
 
 fn main() -> Result<()> {
     // let body: String = ureq::get("https://daiderd.com/nix-darwin/manual/index.html")
     //     .call()?
     //     .into_string()?;
+    // let body = std::fs::read_to_string("data/index.html").unwrap();
     let body = std::fs::read_to_string("data/index-short.html").unwrap();
     let dom = tl::parse(&body, tl::ParserOptions::default())?;
     let opts = parse_options(&dom);
-    // println!("{:#?}", opts.unwrap());
 
-    for opt in opts.unwrap() {
-        println!("{opt}");
+    let opt_strings = opts.iter().map(OptData::to_string);
+
+    let pattern = "documentation";
+
+    let mut nuc =
+        nucleo::Nucleo::<String>::new(Config::DEFAULT, std::sync::Arc::new(|| ()), None, 1);
+    let inj = nuc.injector();
+    for s in opt_strings {
+        inj.push(s.clone(), |fill| fill[0] = s.into());
     }
+    eprintln!("{}", inj.injected_items());
+
+    nuc.pattern.reparse(
+        0,
+        &pattern,
+        CaseMatching::Smart,
+        Normalization::Smart,
+        false,
+    );
+
+    nuc.tick(10);
+
+    let snap = nuc.snapshot();
+    let n = snap.matched_item_count();
+    eprintln!("{}", n);
+    for m in snap.matched_items(0..n) {
+        eprintln!("{}\n{:?}", m.data, m.matcher_columns);
+    }
+    // let matches = fuzzy_match(pattern, opt_strings);
+
+    // for m in matches.iter().take(10) {
+    //     eprintln!("{} \n Score: {}\n", m.0, m.1);
+    // }
+
     Ok(())
 }
 
-// Structure of data/index.html (nix-darwin): Each option header is in a <dt>, associated description, type, default and link to docs is in a <dd>.
-fn parse_options<'a>(dom: &'a VDom<'a>) -> Option<Vec<OptData<'a>>> {
-    let p = dom.parser();
-    // NodeHandles to all dt and dd tags, in order
-    let varlist: Vec<_> = dom.query_selector("dt, dd")?.collect();
-
-    // Entries of varlist should be pairs of dt followed by dd
-    assert!(varlist.len() % 2 == 0);
-
-    // Pair up dt and dd tags, parse and collect
-    let mut opts = vec![];
-    let mut index = 0;
-    while index + 1 < varlist.len() {
-        let parser = OptParser::new(*varlist.get(index)?, *varlist.get(index + 1)?, p);
-        opts.push(parser.parse());
-        index += 2;
-    }
-    Some(opts)
+/// convenience function to easily fuzzy match
+/// on a (relatively small list of inputs). This is not recommended for building a full tui
+/// application that can match large numbers of matches as all matching is done on the current
+/// thread, effectively blocking the UI
+// Taken from https://github.com/helix-editor/helix/blob/d0bb77447138f5f70f96b174a8f29045a956c8c4/helix-core/src/fuzzy.rs#L4
+// Look into optimizations/keeping a global matcher around as a static, like helix does
+pub fn fuzzy_match<T: AsRef<str>>(
+    pattern: &str,
+    items: impl IntoIterator<Item = T>,
+) -> Vec<(T, u16)> {
+    let mut matcher = nucleo::Matcher::default();
+    matcher.config = Config::DEFAULT;
+    let pattern = Atom::new(
+        pattern,
+        CaseMatching::Smart,
+        Normalization::Smart,
+        AtomKind::Fuzzy,
+        false,
+    );
+    pattern.match_list(items, &mut matcher)
 }
