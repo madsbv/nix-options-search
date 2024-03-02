@@ -74,7 +74,7 @@ pub fn search_for<'a, T: Sync + Send + 'a>(
 ) -> Vec<nucleo::Item<'a, T>> {
     nuc.pattern.reparse(
         0,
-        dbg!(pattern),
+        pattern,
         CaseMatching::Ignore,
         Normalization::Smart,
         false,

@@ -11,7 +11,9 @@ include = ["src/main.rs", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
 [dependencies]
 anyhow = "1.0.80"
+crossterm = "0.27.0"
 nanohtml2text = "0.1.4"
 nucleo = "0.4.0"
+ratatui = "0.26.1"
 tl = "0.7.8"
 ureq = "2.9.6"
