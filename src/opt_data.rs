@@ -40,6 +40,19 @@ impl OptData<'_> {
             .iter()
             .map(|t| html2text(&t.outer_html(self.p)))
             .fold(String::new(), |acc, e| acc + "\n" + &e)
+            .trim()
+            .to_string()
+    }
+
+    pub fn fields_as_strings(&self) -> Vec<String> {
+        vec![
+            self.field_to_string(&self.name),
+            self.field_to_string(&self.description),
+            self.field_to_string(&self.var_type),
+            self.field_to_string(&self.default),
+            self.field_to_string(&self.example),
+            self.field_to_string(&self.declared_by),
+        ]
     }
 }
 
