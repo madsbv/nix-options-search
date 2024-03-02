@@ -65,7 +65,7 @@ fn init_nuc(data: &[OptData]) -> Result<Nucleo<Vec<String>>> {
     Ok(nuc)
 }
 
-/// Convenience function for doing a blocking search on nuc
+/// Convenience function for doing a blocking search on nuc. The best match is first in the output.
 #[allow(clippy::module_name_repetitions)]
 pub fn search_for<'a, T: Sync + Send + 'a>(
     pattern: &str,

@@ -13,7 +13,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     prelude::*,
     symbols::border,
-    widgets::{block::*, Borders, Paragraph},
+    widgets::{block::*, *},
 };
 use std::io;
 
@@ -38,6 +38,7 @@ fn main() -> Result<()> {
 // TODO: Lifetimes so search_results can just point to the contents of the matcher
 pub struct App {
     search_string: String,
+    // The best matching result is first in the list
     search_results: Vec<Vec<String>>,
     matcher: nucleo::Nucleo<Vec<String>>,
     exit: bool,
@@ -77,7 +78,8 @@ impl App {
             _ => {}
         };
         // TODO: Test whether we need to have concurrency involved here.
-        self.search_results = search_for(&self.search_string, &mut self.matcher, 1000)
+        // TODO: Arguably we should try to limit the number of matches we take. Can we access the size of the frame somehow, or should we just choose some reasonably small number?
+        self.search_results = search_for(&self.search_string, &mut self.matcher, 10)
             .into_iter()
             .map(|item| item.data.clone()) // TODO: Eliminate clone?
             .collect();
@@ -86,9 +88,11 @@ impl App {
 
     fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
-            KeyCode::Char('q') => self.exit = true,
             KeyCode::Char(c) => self.search_string.push(c),
-            // TODO: Handle things like backspace, and some way to quit
+            KeyCode::Backspace => {
+                self.search_string.pop();
+            }
+            KeyCode::Esc => self.exit = true,
             _ => {}
         }
     }
@@ -99,9 +103,14 @@ impl Widget for &App {
     where
         Self: Sized,
     {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Length(3)])
+            .split(area);
+
         let title = Title::from(" Nix-darwin options search ".bold());
-        let instructions = Title::from(Line::from(vec![" Quit ".into(), "<Q>".blue().bold()]));
-        let block = Block::default()
+        let instructions = Title::from(Line::from(vec![" Quit ".into(), "<Esc> ".yellow().bold()]));
+        let results_block = Block::default()
             .title(title.alignment(Alignment::Center))
             .title(
                 instructions
@@ -111,17 +120,43 @@ impl Widget for &App {
             .borders(Borders::ALL)
             .border_set(border::THICK);
 
-        let results = Text::from(vec![Line::from(
-            self.search_results
-                .iter()
-                .map(|s| s.clone().join(" ").yellow()) // TODO: Better presentation; have the fields next to each other in blocks
-                .collect::<Vec<_>>(),
-        )]);
+        // TODO: Split each result into multiple rows, or maybe construct a custom layout entirely
+        let rows = self.search_results.clone().into_iter().map(Row::new);
 
-        Paragraph::new(results)
-            .centered()
-            .block(block)
-            .render(area, buf);
+        let widths = [
+            Constraint::Min(10),
+            Constraint::Min(10),
+            Constraint::Min(10),
+            Constraint::Min(10),
+            Constraint::Min(10),
+            Constraint::Min(10),
+        ];
+
+        let results_table = Table::new(rows, widths)
+            .column_spacing(1)
+            .header(
+                Row::new(vec![
+                    "Name",
+                    "Description",
+                    "Type",
+                    "Default",
+                    "Example",
+                    "Declared by",
+                ])
+                .bottom_margin(1),
+            )
+            .block(results_block);
+
+        // Table is also a StatefulWidget, so results_table.render() is ambiguous
+        ratatui::widgets::Widget::render(results_table, chunks[0], buf);
+
+        let search_block = Block::default()
+            .borders(Borders::ALL)
+            .border_set(border::THICK);
+
+        let search_par =
+            Paragraph::new(Text::from(self.search_string.clone().red())).block(search_block);
+        search_par.render(chunks[1], buf);
     }
 }
 #[cfg(test)]
@@ -137,7 +172,7 @@ mod tests {
         assert_eq!(app.search_string, "w".to_string());
 
         assert!(!app.exit);
-        app.handle_key_event(KeyCode::Char('q').into());
+        app.handle_key_event(KeyCode::Esc.into());
         assert!(app.exit);
     }
 }
