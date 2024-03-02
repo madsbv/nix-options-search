@@ -1,25 +1,21 @@
 #![warn(clippy::all, clippy::pedantic)]
 // #![warn(clippy::cargo)]
-#![allow(
-    clippy::missing_errors_doc,
-    clippy::must_use_candidate,
-    clippy::struct_excessive_bools,
-    clippy::similar_names
-)]
+#![allow(clippy::missing_errors_doc, clippy::similar_names)]
 
-#[allow(unused_imports)]
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     prelude::*,
     symbols::border,
-    widgets::{block::*, *},
+    widgets::{
+        block::{Block, Position, Title},
+        Borders, Paragraph, Row, Table,
+    },
 };
 use std::io;
 
 mod opt_data;
 mod search;
-#[allow(unused_imports)]
 use search::{nix_darwin_searcher, nix_darwin_searcher_from_cache, search_for};
 
 mod tui;

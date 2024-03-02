@@ -4,20 +4,16 @@ use nucleo::{Config, Nucleo, Utf32String};
 
 use crate::opt_data::{parse_options, OptData};
 
-#[allow(dead_code)]
 const NIX_DARWIN_URL: &str = "https://daiderd.com/nix-darwin/manual/index.html";
-#[allow(dead_code)]
 const NIX_DARWIN_CACHE_PATH: &str = "data/index.html";
 
-#[allow(dead_code)]
 pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
     let body: String = ureq::get(NIX_DARWIN_URL).call()?.into_string()?;
     searcher_from_html(&body)
 }
 
-#[allow(dead_code)]
 pub fn nix_darwin_searcher_from_cache() -> Result<Nucleo<Vec<String>>> {
-    let body = std::fs::read_to_string("data/index.html")?;
+    let body = std::fs::read_to_string(NIX_DARWIN_CACHE_PATH)?;
     searcher_from_html(&body)
 }
 
