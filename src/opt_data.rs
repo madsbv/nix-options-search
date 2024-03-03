@@ -44,14 +44,32 @@ impl OptData<'_> {
             .to_string()
     }
 
+    /// Give a purely text-based representation of `self`, stripping out HTML-specific tags like links.
     pub fn fields_as_strings(&self) -> Vec<String> {
         vec![
-            self.field_to_string(&self.name),
+            // Clean up any " (index.html#...)" links
+            self.field_to_string(&self.name)
+                .split(" (index")
+                .next()
+                .unwrap_or("")
+                .to_string(),
             self.field_to_string(&self.description),
-            self.field_to_string(&self.var_type),
-            self.field_to_string(&self.default),
-            self.field_to_string(&self.example),
-            self.field_to_string(&self.declared_by),
+            self.field_to_string(&self.var_type)
+                .trim_start_matches("Type:")
+                .trim()
+                .to_string(),
+            self.field_to_string(&self.default)
+                .trim_start_matches("Default:")
+                .trim()
+                .to_string(),
+            self.field_to_string(&self.example)
+                .trim_start_matches("Example:")
+                .trim()
+                .to_string(),
+            self.field_to_string(&self.declared_by)
+                .trim_start_matches("Declared by:")
+                .trim()
+                .to_string(),
         ]
     }
 }
