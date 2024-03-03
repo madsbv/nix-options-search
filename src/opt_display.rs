@@ -1,5 +1,6 @@
 use ratatui::{prelude::*, widgets::Paragraph, widgets::Wrap};
 
+#[derive(Clone, Debug)]
 pub struct OptDisplay {
     name: String,
     description: String,
@@ -55,15 +56,15 @@ impl Widget for &OptDisplay {
 }
 
 impl OptDisplay {
-    /// Create an OptDisplay from a vector of Strings, assumed to be in the order `name, description, var_type, default, example`. Defaults to empty strings for any missing entries.
+    /// Create an `OptDisplay` from a vector of Strings, assumed to be in the order `name, description, var_type, default, example`. Defaults to empty strings for any missing entries.
     pub fn from_vec(mut opt: Vec<String>) -> Self {
         let mut opt = opt.drain(..);
         Self {
-            name: opt.next().unwrap_or(String::new()),
-            description: opt.next().unwrap_or(String::new()),
-            var_type: opt.next().unwrap_or(String::new()),
-            default: opt.next().unwrap_or(String::new()),
-            example: opt.next().unwrap_or(String::new()),
+            name: opt.next().unwrap_or_default(),
+            description: opt.next().unwrap_or_default(),
+            var_type: opt.next().unwrap_or_default(),
+            default: opt.next().unwrap_or_default(),
+            example: opt.next().unwrap_or_default(),
         }
     }
 }

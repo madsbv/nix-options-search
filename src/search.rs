@@ -5,7 +5,7 @@ use nucleo::{Config, Nucleo, Utf32String};
 use crate::opt_data::{parse_options, OptData};
 
 const NIX_DARWIN_URL: &str = "https://daiderd.com/nix-darwin/manual/index.html";
-const NIX_DARWIN_CACHE_PATH: &str = "data/index.html";
+const NIX_DARWIN_CACHED_HTML: &str = include_str!("../data/index.html");
 
 pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
     let body: String = ureq::get(NIX_DARWIN_URL).call()?.into_string()?;
@@ -13,13 +13,12 @@ pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
 }
 
 pub fn nix_darwin_searcher_from_cache() -> Result<Nucleo<Vec<String>>> {
-    let body = std::fs::read_to_string(NIX_DARWIN_CACHE_PATH)?;
-    searcher_from_html(&body)
+    searcher_from_html(NIX_DARWIN_CACHED_HTML)
 }
 
 fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
     let dom = tl::parse(html, tl::ParserOptions::default())?;
-    let opts = parse_options(&dom);
+    let opts = parse_options(&dom)?;
 
     init_nuc(&opts)
 }
@@ -63,11 +62,10 @@ fn init_nuc(data: &[OptData]) -> Result<Nucleo<Vec<String>>> {
 
 /// Convenience function for doing a blocking search on nuc. The best match is first in the output.
 #[allow(clippy::module_name_repetitions)]
-pub fn search_for<'a, T: Sync + Send + 'a>(
+pub fn search_for<'a, T: Sync + Send + Clone>(
     pattern: &str,
     nuc: &'a mut Nucleo<T>,
-    max_results: u32,
-) -> Vec<nucleo::Item<'a, T>> {
+) -> impl Iterator<Item = &'a T> + 'a {
     nuc.pattern.reparse(
         0,
         pattern,
@@ -80,7 +78,7 @@ pub fn search_for<'a, T: Sync + Send + 'a>(
     while nuc.tick(10).running {}
 
     let snap = nuc.snapshot();
-    let n = snap.matched_item_count().min(max_results);
+    let n = snap.matched_item_count();
 
-    snap.matched_items(0..n).collect()
+    snap.matched_items(0..n).map(|item| item.data)
 }

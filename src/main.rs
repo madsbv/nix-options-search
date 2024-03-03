@@ -13,7 +13,7 @@ mod tui;
 fn main() -> Result<()> {
     let mut terminal = tui::init()?;
 
-    let mut app = app::init_darwin_app(false)?;
+    let mut app = app::darwin()?;
 
     let _ = app.run(&mut terminal);
 

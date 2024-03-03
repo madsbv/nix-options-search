@@ -10,28 +10,26 @@ use ratatui::{
         Borders, Paragraph,
     },
 };
+use std::cell::RefCell;
 use std::io;
 
-// TODO: This will probably be renamed to SearchPage whenever we add nixOS/home-manager support as well.
-// Actually, only search_results and matcher will be switched out, search_string and the search box should remain.
-// TODO: Lifetimes so search_results can just point to the contents of the matcher? Doesn't seem like it's needed.
+// This will probably be renamed to SearchPage whenever we add nixOS/home-manager support as well.
+// Actually, only the matcher will be switched out, search_string and the search box should remain.
 pub struct App {
     search_string: String,
-    // The best matching result is first in the list
-    search_results: Vec<Vec<String>>,
-    matcher: nucleo::Nucleo<Vec<String>>,
+    // We need `RefCell` because `Nucleo` holds the pattern to search for as internal state, and doing a search requires `&mut Nucleo`. Using RefCell allows us to do the search at render-time, when we know how many results we'll need to populate the window.
+    // Alternative: Split the searching step up into the reparse step and a finish step that actually outputs the results.
+    matcher: RefCell<nucleo::Nucleo<Vec<String>>>,
     exit: bool,
 }
 
-pub fn init_darwin_app(use_cache: bool) -> Result<App> {
-    let matcher = if use_cache {
-        nix_darwin_searcher_from_cache()?
-    } else {
-        nix_darwin_searcher()?
-    };
+/// The nix-darwin options searcher
+pub fn darwin() -> Result<App> {
+    let matcher = nix_darwin_searcher()
+        .unwrap_or(nix_darwin_searcher_from_cache()?)
+        .into();
     Ok(App {
         search_string: String::new(),
-        search_results: vec![],
         matcher,
         exit: false,
     })
@@ -56,13 +54,6 @@ impl App {
             Event::Key(key) if key.kind == KeyEventKind::Press => self.handle_key_event(key),
             _ => {}
         };
-        // TODO: Test whether we need to have concurrency involved here.
-        // TODO: Arguably we should try to limit the number of matches we take. Can we access the size of the frame somehow, or should we just choose some reasonably small number?
-        // Actually, maybe we can store search_results as an iterator and just have it lazily evaluate the number of results we need when rendering.
-        self.search_results = search_for(&self.search_string, &mut self.matcher, 100)
-            .into_iter()
-            .map(|item| item.data.clone()) // TODO: Eliminate clone?
-            .collect();
         Ok(())
     }
 
@@ -111,16 +102,16 @@ impl Widget for &App {
         // Also decide whether to round up or down
         let n_opts = results_inner_area.height as usize / opt_display_height;
 
-        let results = self
-            .search_results
-            .iter()
+        let results = search_for(&self.search_string, &mut *self.matcher.borrow_mut())
             .take(n_opts)
-            .map(|v| OptDisplay::from_vec(v.clone()));
+            .map(|v| OptDisplay::from_vec(v.clone()))
+            .collect::<Vec<_>>();
 
         // TODO: Do something with the spacers?
+        #[allow(clippy::cast_possible_truncation)]
         let (results_layout, _) = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(results.clone().map(|_| opt_display_height as u16))
+            .constraints(results.iter().map(|_| opt_display_height as u16))
             .margin(1)
             .split_with_spacers(results_inner_area); // Constraint implements from<u16>
 
@@ -145,7 +136,7 @@ mod tests {
     #[test]
     fn handle_key_event() {
         let mut app =
-            init_darwin_app(true).expect("we can initialize an app from the cached index.html");
+            darwin().expect("we can initialize an app from the cached index.html at least");
 
         app.handle_key_event(KeyCode::Char('w').into());
         assert_eq!(app.search_string, "w".to_string());

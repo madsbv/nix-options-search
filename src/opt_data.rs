@@ -1,8 +1,9 @@
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
+use anyhow::{Result, ensure};
 
 /// Structure of data/index.html (nix-darwin): Each option header is in a <dt>, associated description, type, default, example and link to docs is in a <dd>.
 /// This method assumes that there's an equal number of <dt> and <dd> tags, and that they come paired up one after the other. If the number of <dt> and <dd> tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
-pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Vec<OptData<'dom>> {
+pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> {
     let p = dom.parser();
     let dt_tags = dom
         .query_selector("dt")
@@ -14,11 +15,15 @@ pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Vec<OptData<'dom>> {
         .collect::<Vec<_>>();
 
     // TODO: Should we panic, or return a Result type?
-    assert_eq!(dt_tags.len(), dd_tags.len());
 
-    std::iter::zip(dt_tags, dd_tags)
+    ensure!(
+        dt_tags.len() == dd_tags.len(),
+        "there should be an equal number of dt and dd tags"
+    );
+
+    Ok(std::iter::zip(dt_tags, dd_tags)
         .map(|(dt, dd)| OptParser::new(dt, dd, p).parse())
-        .collect()
+        .collect())
 }
 
 #[derive(Clone, Debug)]
