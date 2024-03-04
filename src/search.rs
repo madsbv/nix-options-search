@@ -1,3 +1,5 @@
+// TODO: Remove once searchers have been added and integrated.
+#![allow(dead_code)]
 use color_eyre::eyre::{eyre, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
@@ -6,10 +8,16 @@ use crate::opt_data::{parse_options, OptData};
 
 const NIX_DARWIN_URL: &str = "https://daiderd.com/nix-darwin/manual/index.html";
 const NIXOS_URL: &str = "https://nixos.org/manual/nixos/stable/options";
+const HOME_MANAGER_OPTIONS_URL: &str = "https://nix-community.github.io/home-manager/options.xhtml";
+const HOME_MANAGER_NIXOS_OPTIONS_URL: &str =
+    "https://nix-community.github.io/home-manager/nixos-options.xhtml";
+const HOME_MANAGER_NIX_DARWIN_OPTIONS_URL: &str =
+    "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml";
+
 const NIX_DARWIN_CACHED_HTML: &str = include_str!("../data/index.html");
 
-// The nixos options page is greater than the 10MB limit imposed by `ureq::Request::into_string`.
 pub fn nixos_searcher() -> Result<Nucleo<Vec<String>>> {
+    // The nixos options page is greater than the 10MB limit imposed by `ureq::Request::into_string`, so we circumvent it.
     let mut body = String::new();
     ureq::get(NIXOS_URL)
         .call()?
