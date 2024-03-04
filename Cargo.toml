@@ -12,6 +12,7 @@ include = ["src/main.rs", "LICENSE-*", "README.md", "CHANGELOG.md"]
 [dependencies]
 color-eyre = "0.6.2"
 crossterm = "0.27.0"
+include-flate = "0.3.0"
 nanohtml2text = "0.1.4"
 nucleo = "0.4.0"
 ratatui = "0.26.1"

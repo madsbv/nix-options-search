@@ -1,11 +1,12 @@
 use color_eyre::eyre::{eyre, Result};
+use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
 
 use crate::opt_data::{parse_options, OptData};
 
 const NIX_DARWIN_URL: &str = "https://daiderd.com/nix-darwin/manual/index.html";
-const NIX_DARWIN_CACHED_HTML: &str = include_str!("../data/nix-darwin-index.html");
+flate!(static NIX_DARWIN_CACHED_HTML: str from "data/nix-darwin-index.html");
 
 pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
     let body: String = ureq::get(NIX_DARWIN_URL).call()?.into_string()?;
@@ -13,7 +14,7 @@ pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
 }
 
 pub fn nix_darwin_searcher_from_cache() -> Result<Nucleo<Vec<String>>> {
-    searcher_from_html(NIX_DARWIN_CACHED_HTML)
+    searcher_from_html(&NIX_DARWIN_CACHED_HTML)
 }
 
 fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
@@ -81,4 +82,18 @@ pub fn search_for<'a, T: Sync + Send + Clone>(
     let n = snap.matched_item_count();
 
     snap.matched_items(0..n).map(|item| item.data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
+    #[test]
+    fn parse_cached_darwin() {
+        let matcher = nix_darwin_searcher_from_cache()
+            .expect("cached data should be parsable and generate a matcher");
+        let snap = matcher.snapshot();
+        assert!(snap.item_count() > 100);
+    }
 }
