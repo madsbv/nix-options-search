@@ -6,7 +6,7 @@ use crossterm::{
 };
 use ratatui::prelude::*;
 
-use anyhow::Result;
+use color_eyre::eyre::Result;
 
 /// A type alias for the terminal type used in this application
 pub type Tui = Terminal<CrosstermBackend<Stdout>>;

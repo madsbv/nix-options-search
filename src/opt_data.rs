@@ -1,8 +1,9 @@
+use color_eyre::eyre::{ensure, Result};
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
 
 /// Structure of data/index.html (nix-darwin): Each option header is in a <dt>, associated description, type, default, example and link to docs is in a <dd>.
 /// This method assumes that there's an equal number of <dt> and <dd> tags, and that they come paired up one after the other. If the number of <dt> and <dd> tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
-pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Vec<OptData<'dom>> {
+pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> {
     let p = dom.parser();
     let dt_tags = dom
         .query_selector("dt")
@@ -13,12 +14,14 @@ pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Vec<OptData<'dom>> {
         .expect("dd is a valid CSS selector")
         .collect::<Vec<_>>();
 
-    // TODO: Should we panic, or return a Result type?
-    assert_eq!(dt_tags.len(), dd_tags.len());
+    ensure!(
+        dt_tags.len() == dd_tags.len(),
+        "there should be an equal number of dt and dd tags"
+    );
 
-    std::iter::zip(dt_tags, dd_tags)
+    Ok(std::iter::zip(dt_tags, dd_tags)
         .map(|(dt, dd)| OptParser::new(dt, dd, p).parse())
-        .collect()
+        .collect())
 }
 
 #[derive(Clone, Debug)]
@@ -44,14 +47,32 @@ impl OptData<'_> {
             .to_string()
     }
 
+    /// Give a purely text-based representation of `self`, stripping out HTML-specific tags like links.
     pub fn fields_as_strings(&self) -> Vec<String> {
         vec![
-            self.field_to_string(&self.name),
+            // Clean up any " (index.html#...)" links
+            self.field_to_string(&self.name)
+                .split(" (index")
+                .next()
+                .unwrap_or("")
+                .to_string(),
             self.field_to_string(&self.description),
-            self.field_to_string(&self.var_type),
-            self.field_to_string(&self.default),
-            self.field_to_string(&self.example),
-            self.field_to_string(&self.declared_by),
+            self.field_to_string(&self.var_type)
+                .trim_start_matches("Type:")
+                .trim()
+                .to_string(),
+            self.field_to_string(&self.default)
+                .trim_start_matches("Default:")
+                .trim()
+                .to_string(),
+            self.field_to_string(&self.example)
+                .trim_start_matches("Example:")
+                .trim()
+                .to_string(),
+            self.field_to_string(&self.declared_by)
+                .trim_start_matches("Declared by:")
+                .trim()
+                .to_string(),
         ]
     }
 }
@@ -86,8 +107,6 @@ impl<'dom> OptParser<'dom> {
     pub fn parse(self) -> OptData<'dom> {
         let mut tag_slices = self.split_tags();
         let name = self.get_name();
-        // TODO: We'll make the fields of OptData Option and remove a bunch of these unwrap_or_else
-        // TODO: It might be better to have get_field_by_separator consume the sections it uses, and debug_assert that there's one left, which we'll feed into description at the end
         let var_type = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[0]);
         let default = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[1]);
         let example = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[2]);
