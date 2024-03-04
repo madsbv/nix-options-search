@@ -14,8 +14,6 @@ pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> 
         .expect("dd is a valid CSS selector")
         .collect::<Vec<_>>();
 
-    // TODO: Should we panic, or return a Result type?
-
     ensure!(
         dt_tags.len() == dd_tags.len(),
         "there should be an equal number of dt and dd tags"
@@ -109,8 +107,6 @@ impl<'dom> OptParser<'dom> {
     pub fn parse(self) -> OptData<'dom> {
         let mut tag_slices = self.split_tags();
         let name = self.get_name();
-        // TODO: We'll make the fields of OptData Option and remove a bunch of these unwrap_or_else
-        // TODO: It might be better to have get_field_by_separator consume the sections it uses, and debug_assert that there's one left, which we'll feed into description at the end
         let var_type = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[0]);
         let default = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[1]);
         let example = self.get_field_by_separator(&mut tag_slices, OptParser::separator_tags()[2]);

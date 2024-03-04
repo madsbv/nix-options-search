@@ -10,13 +10,20 @@ mod opt_display;
 mod search;
 mod tui;
 
-fn main() -> Result<()> {
+fn main() {
+    let res = init_and_run();
+    if let Err(e) = tui::restore() {
+        eprintln!("{e:#?}");
+    }
+    if let Err(e) = res {
+        eprintln!("{e:#?}");
+    }
+}
+
+fn init_and_run() -> Result<()> {
     color_eyre::install()?;
     let mut terminal = tui::init()?;
 
-    let mut app = app::darwin()?;
-
-    let _ = app.run(&mut terminal);
-
-    tui::restore()
+    app::darwin()?.run(&mut terminal)?;
+    Ok(())
 }
