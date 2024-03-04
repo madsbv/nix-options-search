@@ -5,7 +5,18 @@ use nucleo::{Config, Nucleo, Utf32String};
 use crate::opt_data::{parse_options, OptData};
 
 const NIX_DARWIN_URL: &str = "https://daiderd.com/nix-darwin/manual/index.html";
+const NIXOS_URL: &str = "https://nixos.org/manual/nixos/stable/options";
 const NIX_DARWIN_CACHED_HTML: &str = include_str!("../data/index.html");
+
+// The nixos options page is greater than the 10MB limit imposed by `ureq::Request::into_string`.
+pub fn nixos_searcher() -> Result<Nucleo<Vec<String>>> {
+    let mut body = String::new();
+    ureq::get(NIXOS_URL)
+        .call()?
+        .into_reader()
+        .read_to_string(&mut body)?;
+    searcher_from_html(&body)
+}
 
 pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
     let body: String = ureq::get(NIX_DARWIN_URL).call()?.into_string()?;
