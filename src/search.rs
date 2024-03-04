@@ -7,39 +7,60 @@ use nucleo::{Config, Nucleo, Utf32String};
 
 use crate::opt_data::{parse_options, OptData};
 
-const NIX_DARWIN_URL: &str = "https://daiderd.com/nix-darwin/manual/index.html";
-const NIXOS_URL: &str = "https://nixos.org/manual/nixos/stable/options";
-const HOME_MANAGER_URL: &str = "https://nix-community.github.io/home-manager/options.xhtml";
-const HOME_MANAGER_NIXOS_URL: &str =
-    "https://nix-community.github.io/home-manager/nixos-options.xhtml";
-const HOME_MANAGER_NIX_DARWIN_URL: &str =
-    "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml";
+#[derive(Debug, Copy, Clone)]
+pub enum Source {
+    NixDarwin,
+    NixOS,
+    HomeManager,
+    HomeManagerNixOS,
+    HomeManagerNixDarwin,
+}
+
+impl Source {
+    fn url(self) -> &'static str {
+        match self {
+            Self::NixDarwin => "https://daiderd.com/nix-darwin/manual/index.html",
+            Self::NixOS => "https://nixos.org/manual/nixos/stable/options",
+            Self::HomeManager => "https://nix-community.github.io/home-manager/options.xhtml",
+            Self::HomeManagerNixOS => {
+                "https://nix-community.github.io/home-manager/nixos-options.xhtml"
+            }
+            Self::HomeManagerNixDarwin => {
+                "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml"
+            }
+        }
+    }
+
+    fn cache(self) -> &'static str {
+        match self {
+            Self::NixDarwin => &NIX_DARWIN_CACHED_HTML,
+            Self::NixOS => &NIXOS_CACHED_HTML,
+            Self::HomeManager => &HOME_MANAGER_CACHED_HTML,
+            Self::HomeManagerNixOS => &HOME_MANAGER_NIXOS_CACHED_HTML,
+            Self::HomeManagerNixDarwin => &HOME_MANAGER_NIX_DARWIN_CACHED_HTML,
+        }
+    }
+}
 
 flate!(static NIX_DARWIN_CACHED_HTML: str from "data/nix-darwin-index.html");
 flate!(static NIXOS_CACHED_HTML: str from "data/nixos-index.html");
 flate!(static HOME_MANAGER_CACHED_HTML: str from "data/home-manager-index.html");
 flate!(static HOME_MANAGER_NIXOS_CACHED_HTML: str from "data/home-manager-nixos-index.html");
 flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-nix-darwin-index.html");
+
 // TODO: Should we rather compress these on disk and take a libflate/zstd dependency (so the source of this package takes up less space)?
 // We could have a 'raw assets' folder in git for version management, and a 'compressed assets' folder that's generated fro the raw assets, and included in the crates.io package and the binary.
 
-pub fn nixos_searcher() -> Result<Nucleo<Vec<String>>> {
-    // The nixos options page is greater than the 10MB limit imposed by `ureq::Request::into_string`, so we circumvent it.
-    let mut body = String::new();
-    ureq::get(NIXOS_URL)
-        .call()?
-        .into_reader()
-        .read_to_string(&mut body)?;
-    searcher_from_html(&body)
-}
-
-pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
-    let body: String = ureq::get(NIX_DARWIN_URL).call()?.into_string()?;
-    searcher_from_html(&body)
-}
-
-pub fn nix_darwin_searcher_from_cache() -> Result<Nucleo<Vec<String>>> {
-    searcher_from_html(&NIX_DARWIN_CACHED_HTML)
+pub fn new_searcher(source: Source, try_http: bool) -> Result<Nucleo<Vec<String>>> {
+    if try_http {
+        if let Ok(res) = ureq::get(source.url()).call() {
+            let mut html = String::new();
+            if res.into_reader().read_to_string(&mut html).is_ok() {
+                return searcher_from_html(&html);
+            }
+        }
+    }
+    searcher_from_html(source.cache())
 }
 
 fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
@@ -116,7 +137,7 @@ mod tests {
     /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
     #[test]
     fn parse_cached_darwin() {
-        let matcher = nix_darwin_searcher_from_cache()
+        let matcher = new_searcher(Source::NixDarwin, false)
             .expect("cached data should be parsable and generate a matcher");
         let snap = matcher.snapshot();
         assert!(snap.item_count() > 100);

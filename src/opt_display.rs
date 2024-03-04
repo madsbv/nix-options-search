@@ -21,6 +21,7 @@ pub struct OptDisplay {
 /// This widget only handles text layout and has no border built in.
 // TODO: Redo layout. Stack name, type and default on top of each other on the left, and either description and example on top of each other to the right of that, or next to each other in two columns. 'Description' is currently pretty hard to separate from the other pieces.
 // TODO: Bold-font the name?
+// TODO: Consider using tui-widgets-list: https://github.com/preiter93/tui-widget-list/blob/main/examples/demo.gif
 impl Widget for &OptDisplay {
     fn render(self, area: Rect, buf: &mut Buffer)
     where

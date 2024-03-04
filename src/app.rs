@@ -1,5 +1,5 @@
 use crate::opt_display::OptDisplay;
-use crate::search::{nix_darwin_searcher, nix_darwin_searcher_from_cache, search_for};
+use crate::search::{new_searcher, search_for, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -25,9 +25,8 @@ pub struct App {
 
 /// The nix-darwin options searcher
 pub fn darwin() -> Result<App> {
-    let matcher = nix_darwin_searcher()
-        .unwrap_or(nix_darwin_searcher_from_cache()?)
-        .into();
+    let matcher = new_searcher(Source::NixDarwin, true)?.into();
+
     Ok(App {
         search_string: String::new(),
         matcher,
