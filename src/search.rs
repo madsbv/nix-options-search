@@ -5,7 +5,7 @@ use nucleo::{Config, Nucleo, Utf32String};
 use crate::opt_data::{parse_options, OptData};
 
 const NIX_DARWIN_URL: &str = "https://daiderd.com/nix-darwin/manual/index.html";
-const NIX_DARWIN_CACHED_HTML: &str = include_str!("../data/index.html");
+const NIX_DARWIN_CACHED_HTML: &str = include_str!("../data/nix-darwin-index.html");
 
 pub fn nix_darwin_searcher() -> Result<Nucleo<Vec<String>>> {
     let body: String = ureq::get(NIX_DARWIN_URL).call()?.into_string()?;
