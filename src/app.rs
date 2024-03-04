@@ -1,6 +1,6 @@
 use crate::opt_display::OptDisplay;
 use crate::search::{nix_darwin_searcher, nix_darwin_searcher_from_cache, search_for};
-use anyhow::Result;
+use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     prelude::*,

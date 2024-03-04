@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use color_eyre::eyre::{eyre, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
 
@@ -27,7 +27,7 @@ fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
 fn init_nuc(data: &[OptData]) -> Result<Nucleo<Vec<String>>> {
     let columns = data
         .first()
-        .ok_or(anyhow!(
+        .ok_or(eyre!(
             "the collection of data injected to the searcher should be non-empty"
         ))?
         .fields_as_strings()

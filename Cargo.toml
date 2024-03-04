@@ -10,7 +10,7 @@ include = ["src/main.rs", "LICENSE-*", "README.md", "CHANGELOG.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.80"
+color-eyre = "0.6.2"
 crossterm = "0.27.0"
 nanohtml2text = "0.1.4"
 nucleo = "0.4.0"
