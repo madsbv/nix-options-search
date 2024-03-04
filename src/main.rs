@@ -5,6 +5,7 @@
 use color_eyre::eyre::Result;
 
 mod app;
+use app::App;
 mod opt_data;
 mod opt_display;
 mod search;
@@ -24,6 +25,6 @@ fn init_and_run() -> Result<()> {
     color_eyre::install()?;
     let mut terminal = tui::init()?;
 
-    app::darwin()?.run(&mut terminal)?;
+    App::new().run(&mut terminal)?;
     Ok(())
 }

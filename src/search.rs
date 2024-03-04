@@ -1,5 +1,3 @@
-// TODO: Remove once searchers have been added and integrated.
-#![allow(dead_code)]
 use color_eyre::eyre::{eyre, Result};
 use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
@@ -7,6 +5,8 @@ use nucleo::{Config, Nucleo, Utf32String};
 
 use crate::opt_data::{parse_options, OptData};
 
+// TODO: Remove once searchers have been added and integrated.
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 pub enum Source {
     NixDarwin,
@@ -51,16 +51,18 @@ flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-n
 // TODO: Should we rather compress these on disk and take a libflate/zstd dependency (so the source of this package takes up less space)?
 // We could have a 'raw assets' folder in git for version management, and a 'compressed assets' folder that's generated fro the raw assets, and included in the crates.io package and the binary.
 
-pub fn new_searcher(source: Source, try_http: bool) -> Result<Nucleo<Vec<String>>> {
+pub fn new_searcher(source: Source, try_http: bool) -> Nucleo<Vec<String>> {
     if try_http {
         if let Ok(res) = ureq::get(source.url()).call() {
             let mut html = String::new();
             if res.into_reader().read_to_string(&mut html).is_ok() {
-                return searcher_from_html(&html);
+                if let Ok(searcher) = searcher_from_html(&html) {
+                    return searcher;
+                }
             }
         }
     }
-    searcher_from_html(source.cache())
+    searcher_from_html(source.cache()).expect("searcher from cache should always work")
 }
 
 fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
@@ -135,10 +137,10 @@ mod tests {
     use super::*;
 
     /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
+
     #[test]
     fn parse_cached_darwin() {
-        let matcher = new_searcher(Source::NixDarwin, false)
-            .expect("cached data should be parsable and generate a matcher");
+        let matcher = new_searcher(Source::NixDarwin, false);
         let snap = matcher.snapshot();
         assert!(snap.item_count() > 100);
     }

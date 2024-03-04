@@ -10,28 +10,64 @@ use ratatui::{
         Borders, Paragraph,
     },
 };
-use std::cell::RefCell;
+use std::cell::{self, RefCell};
 use std::io;
 
-// This will probably be renamed to SearchPage whenever we add nixOS/home-manager support as well.
-// Actually, only the matcher will be switched out, search_string and the search box should remain.
+// TODO: Implement tabs and tab switching.
 pub struct App {
     search_string: String,
     // We need `RefCell` because `Nucleo` holds the pattern to search for as internal state, and doing a search requires `&mut Nucleo`. Using RefCell allows us to do the search at render-time, when we know how many results we'll need to populate the window.
     // Alternative: Split the searching step up into the reparse step and a finish step that actually outputs the results.
-    matcher: RefCell<nucleo::Nucleo<Vec<String>>>,
+    pages: Vec<SearchPage>,
+    active_page: usize,
     exit: bool,
 }
 
-/// The nix-darwin options searcher
-pub fn darwin() -> Result<App> {
-    let matcher = new_searcher(Source::NixDarwin, true)?.into();
+impl App {
+    pub fn new() -> App {
+        App {
+            search_string: String::new(),
+            pages: vec![
+                SearchPage::new(Source::NixDarwin),
+                SearchPage::new(Source::NixOS),
+                SearchPage::new(Source::HomeManager),
+                SearchPage::new(Source::HomeManagerNixOS),
+                SearchPage::new(Source::HomeManagerNixDarwin),
+            ],
+            active_page: 0,
+            exit: false,
+        }
+    }
 
-    Ok(App {
-        search_string: String::new(),
-        matcher,
-        exit: false,
-    })
+    fn get_matcher(&self) -> cell::RefMut<'_, nucleo::Nucleo<Vec<String>>> {
+        assert!(self.active_page < self.pages.len());
+        self.pages[self.active_page].get_matcher()
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// TODO: Figure out how to make matchers lazy load
+struct SearchPage {
+    source: Source,
+    matcher: RefCell<nucleo::Nucleo<Vec<String>>>,
+}
+
+impl SearchPage {
+    fn new(source: Source) -> Self {
+        SearchPage {
+            source,
+            matcher: new_searcher(source, true).into(),
+        }
+    }
+
+    fn get_matcher(&self) -> cell::RefMut<'_, nucleo::Nucleo<Vec<String>>> {
+        self.matcher.borrow_mut()
+    }
 }
 
 impl App {
@@ -101,7 +137,7 @@ impl Widget for &App {
         // Also decide whether to round up or down
         let n_opts = results_inner_area.height as usize / opt_display_height;
 
-        let results = search_for(&self.search_string, &mut *self.matcher.borrow_mut())
+        let results = search_for(&self.search_string, &mut self.get_matcher())
             .take(n_opts)
             .map(|v| OptDisplay::from_vec(v.clone()))
             .collect::<Vec<_>>();
@@ -134,8 +170,8 @@ mod tests {
 
     #[test]
     fn handle_key_event() {
-        let mut app =
-            darwin().expect("we can initialize an app from the cached index.html at least");
+        let mut app = App::new();
+        // TODO: Get all the different matchers to make sure they're constructed correctly.
 
         app.handle_key_event(KeyCode::Char('w').into());
         assert_eq!(app.search_string, "w".to_string());
