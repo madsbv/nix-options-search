@@ -1,5 +1,5 @@
 use crate::opt_display::OptDisplay;
-use crate::search::{new_searcher, search_for, Source};
+use crate::search::{Finder, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -10,7 +10,6 @@ use ratatui::{
         Borders, Paragraph, Tabs,
     },
 };
-use std::cell::{self, RefCell};
 use std::io;
 
 // TODO: Implement tabs and tab switching.
@@ -18,7 +17,7 @@ pub struct App {
     search_string: String,
     // We need `RefCell` because `Nucleo` holds the pattern to search for as internal state, and doing a search requires `&mut Nucleo`. Using RefCell allows us to do the search at render-time, when we know how many results we'll need to populate the window.
     // Alternative: Split the searching step up into the reparse step and a finish step that actually outputs the results.
-    pages: Vec<SearchPage>,
+    pages: Vec<Finder>,
     /// An integer in `0..self.pages.len()`
     active_page: usize,
     exit: bool,
@@ -29,50 +28,30 @@ impl App {
         App {
             search_string: String::new(),
             pages: vec![
-                SearchPage::new(Source::NixDarwin),
-                SearchPage::new(Source::NixOS),
-                SearchPage::new(Source::HomeManager),
-                SearchPage::new(Source::HomeManagerNixOS),
-                SearchPage::new(Source::HomeManagerNixDarwin),
+                Finder::new(Source::NixDarwin),
+                Finder::new(Source::NixOS),
+                Finder::new(Source::HomeManager),
+                Finder::new(Source::HomeManagerNixOS),
+                Finder::new(Source::HomeManagerNixDarwin),
             ],
             active_page: 0,
             exit: false,
         }
     }
 
-    fn get_matcher(&self) -> cell::RefMut<'_, nucleo::Nucleo<Vec<String>>> {
+    fn find_pattern(&self, pattern: &str, max: Option<usize>) -> Vec<Vec<String>> {
         assert!(self.active_page < self.pages.len());
-        self.pages[self.active_page].get_matcher()
+        self.pages[self.active_page].find(pattern, max)
+    }
+
+    fn search(&self, max: Option<usize>) -> Vec<Vec<String>> {
+        self.find_pattern(&self.search_string, max)
     }
 }
 
 impl Default for App {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-// TODO: Figure out how to make matchers lazy load
-// TODO: Move to search
-struct SearchPage {
-    source: Source,
-    matcher: RefCell<nucleo::Nucleo<Vec<String>>>,
-}
-
-impl SearchPage {
-    fn new(source: Source) -> Self {
-        SearchPage {
-            source,
-            matcher: new_searcher(source, true).into(),
-        }
-    }
-
-    fn get_matcher(&self) -> cell::RefMut<'_, nucleo::Nucleo<Vec<String>>> {
-        self.matcher.borrow_mut()
-    }
-
-    fn name(&self) -> &'static str {
-        self.source.name()
     }
 }
 
@@ -136,7 +115,7 @@ impl Widget for &App {
             .split(area);
 
         // TODO: Styling
-        let tabs = Tabs::new(self.pages.iter().map(|p| p.name()).collect::<Vec<_>>())
+        let tabs = Tabs::new(self.pages.iter().map(Finder::name).collect::<Vec<_>>())
             .block(Block::default().title("Tabs").borders(Borders::ALL))
             .style(Style::default().white())
             .highlight_style(Style::default().yellow())
@@ -175,8 +154,9 @@ impl Widget for &App {
         // Also decide whether to round up or down
         let n_opts = results_inner_area.height as usize / opt_display_height;
 
-        let results = search_for(&self.search_string, &mut self.get_matcher())
-            .take(n_opts)
+        let results = self
+            .search(Some(n_opts))
+            .into_iter()
             .map(|v| OptDisplay::from_vec(v.clone()))
             .collect::<Vec<_>>();
 
