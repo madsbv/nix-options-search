@@ -32,8 +32,9 @@ jobs:
       - name: cargo test --locked
         run: cargo test --locked --all-features --all-targets
       # https://github.com/rust-lang/cargo/issues/6669
-      - name: cargo test --doc
-        run: cargo test --locked --all-features --doc
+      # Not relevant for binary crates it seems
+      # - name: cargo test --doc
+      # run: cargo test --locked --all-features --doc
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
