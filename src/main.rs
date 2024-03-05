@@ -1,6 +1,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 // #![warn(clippy::cargo)]
-#![allow(clippy::missing_errors_doc, clippy::similar_names)]
+#![allow(clippy::similar_names)]
 
 use color_eyre::eyre::Result;
 

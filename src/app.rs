@@ -12,11 +12,11 @@ use ratatui::{
 };
 use std::io;
 
-// TODO: Implement tabs and tab switching.
 pub struct App {
     search_string: String,
     // We need `RefCell` because `Nucleo` holds the pattern to search for as internal state, and doing a search requires `&mut Nucleo`. Using RefCell allows us to do the search at render-time, when we know how many results we'll need to populate the window.
     // Alternative: Split the searching step up into the reparse step and a finish step that actually outputs the results.
+    // TODO: Implement the alternative
     pages: Vec<Finder>,
     /// An integer in `0..self.pages.len()`
     active_page: usize,
@@ -186,12 +186,11 @@ impl Widget for &App {
 mod tests {
     use super::*;
 
-    // TODO: All of these test currently create an entire app each, including doing all the parsing, which takes a while. Can we get around the parsing?
+    // TODO: Test doing searches on each page to make sure initialization doesn't panic.
 
     #[test]
     fn modify_search_string() {
         let mut app = App::new();
-        // TODO: Get all the different matchers to make sure they're constructed correctly.
 
         app.handle_key_event(KeyCode::Char('w').into());
         assert_eq!(app.search_string, "w".to_string());

@@ -3,13 +3,9 @@ use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
 use std::cell::{self, RefCell};
+use std::thread::JoinHandle;
 
 use crate::opt_data::{parse_options, OptData};
-
-// TODO: init_nuc is actually kind of concurrent, in that it injects everything into the matcher, but doesn't block while the matcher actually does its thing. So maybe creating the matcher immediately, and letting it do this matching in the background, is the way to go. We could even double down on this, by getting the HTML concurrently with creating the matcher, then doing the injection and tick in a separate thread while returning the matcher immediately. For this we should probably make ureq give a Reader. Can we make tl take and give a reader?
-
-// Alternatively, we can make the html parsing step return a closure that returns the parsed html instead, thus deferring the parsing. We can pass this closure to `init_nuc`, and then spawn off an injection thread with this closure, returning the searcher immediately. We can embed the cache fallback in this function if we do it right.
-// Once implemented, we do want to find a way to make sure that get_matcher blocks until initialization is done.
 
 flate!(static NIX_DARWIN_CACHED_HTML: str from "data/nix-darwin-index.html");
 flate!(static NIXOS_CACHED_HTML: str from "data/nixos-index.html");
@@ -17,7 +13,6 @@ flate!(static HOME_MANAGER_CACHED_HTML: str from "data/home-manager-index.html")
 flate!(static HOME_MANAGER_NIXOS_CACHED_HTML: str from "data/home-manager-nixos-index.html");
 flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-nix-darwin-index.html");
 
-// TODO: Figure out how to make matchers lazy load
 pub struct Finder {
     source: Source,
     searcher: RefCell<Nucleo<Vec<String>>>,
@@ -27,7 +22,7 @@ impl Finder {
     pub fn new(source: Source) -> Self {
         Finder {
             source,
-            searcher: new_searcher(source, true).into(),
+            searcher: new_searcher_concurrent(source, true).0.into(),
         }
     }
 
@@ -97,7 +92,11 @@ impl Source {
     }
 }
 
-fn new_searcher_concurrent(source: Source, try_http: bool) -> Nucleo<Vec<String>> {
+/// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
+fn new_searcher_concurrent(
+    source: Source,
+    try_http: bool,
+) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
     let opts = move || {
         if try_http {
             if let Ok(res) = ureq::get(source.url()).call() {
@@ -114,14 +113,10 @@ fn new_searcher_concurrent(source: Source, try_http: bool) -> Nucleo<Vec<String>
                 }
             }
         }
-        let dom = tl::parse(source.cache(), tl::ParserOptions::default()).unwrap();
-        let opts = parse_options(&dom).unwrap();
+        let dom =
+            tl::parse(source.cache(), tl::ParserOptions::default()).expect("cache should work");
+        let opts = parse_options(&dom).expect("cache should work");
         opts.into_iter().map(|o| o.fields_as_strings()).collect()
-        // tl::parse(source.cache(), tl::ParserOptions::default())
-        //     .map(|d| parse_options(&d).map(|v| v.into_iter().map(|o| o.fields_as_strings())))
-        //     .expect("cache should work")
-        //     .expect("cache should really work")
-        //     .collect::<Vec<Vec<String>>>()
     };
 
     // I think we have to hard-code this with concurrent injection
@@ -135,7 +130,7 @@ fn new_searcher_concurrent(source: Source, try_http: bool) -> Nucleo<Vec<String>
     );
     let inj = nuc.injector();
 
-    std::thread::spawn(move || {
+    let handle = std::thread::spawn(move || {
         let data = opts();
         for mut d in data {
             debug_assert_eq!(columns, d.len());
@@ -156,10 +151,13 @@ fn new_searcher_concurrent(source: Source, try_http: bool) -> Nucleo<Vec<String>
     });
 
     nuc.tick(0);
-    nuc
+    (nuc, handle)
 }
 
-// TODO: Currently blocks on network request. Make this concurrent.
+/// Create a new searcher for `source`, with the option to try getting the live html for `source` or going straight to cache.
+/// Blocks until the matcher is completely initialized and has parsed all data, which can take multiple seconds especially for the nixOS data.
+// We keep this around for testing
+#[allow(dead_code)]
 fn new_searcher(source: Source, try_http: bool) -> Nucleo<Vec<String>> {
     if try_http {
         if let Ok(res) = ureq::get(source.url()).call() {
@@ -185,7 +183,6 @@ fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
 
 /// Take a non-empty vector of `OptData` as input. The number of columns is determined by the length of `OptData::fields_as_strings()`
 /// Blocks while injecting data into Nucleo, but doesn't wait for the data to be processed.
-// TODO: Do injection in a separate thread.
 fn init_nuc(data: &[OptData]) -> Result<Nucleo<Vec<String>>> {
     let columns = data
         .first()
@@ -223,7 +220,6 @@ fn init_nuc(data: &[OptData]) -> Result<Nucleo<Vec<String>>> {
 }
 
 /// Convenience function for doing a blocking search on nuc. The best match is first in the output.
-#[allow(clippy::module_name_repetitions)]
 pub fn find<'a, T: Sync + Send + Clone>(
     pattern: &str,
     nuc: &'a mut Nucleo<T>,
@@ -247,7 +243,6 @@ pub fn find<'a, T: Sync + Send + Clone>(
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
 
     use super::*;
 
@@ -298,18 +293,20 @@ mod tests {
         assert!(snap.item_count() > 5);
     }
 
+    // TODO: Duplicate the tests above for new_searcher_concurrent.
+
+    /// Test that the concurrently created searcher agrees with one created using blocking methods (easier to reason about). Helps verify that we inject data into the concurrently created searcher correctly.
     #[test]
     fn new_searcher_concurrent_correct() {
-        let mut matcher = new_searcher(Source::NixDarwin, false);
-        let mut matcher_concurrent = new_searcher_concurrent(Source::NixDarwin, false);
-        // TODO: Block until matcher_concurrent has caught up
-        // Should probably make `new_searcher_concurrent` return the `JoinHandle` from the thread it spawns.
-        matcher_concurrent.tick(0);
-        matcher.tick(0);
-        thread::sleep_ms(5000);
-        while matcher.tick(1000).running || matcher_concurrent.tick(1000).running {}
-        let snap = matcher.snapshot();
-        let snap_concurrent = matcher_concurrent.snapshot();
+        let mut searcher = new_searcher(Source::NixDarwin, false);
+        let (mut searcher_concurrent, handle) = new_searcher_concurrent(Source::NixDarwin, false);
+        searcher.tick(0);
+        handle
+            .join()
+            .expect("parsing cached data should be infallible");
+        while searcher.tick(1000).running || searcher_concurrent.tick(1000).running {}
+        let snap = searcher.snapshot();
+        let snap_concurrent = searcher_concurrent.snapshot();
 
         // TODO: Do some actual search comparisons instead
         assert_eq!(snap_concurrent.item_count(), snap.item_count());
