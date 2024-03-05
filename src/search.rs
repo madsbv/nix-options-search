@@ -5,6 +5,8 @@ use nucleo::{Config, Nucleo, Utf32String};
 
 use crate::opt_data::{parse_options, OptData};
 
+// TODO: Arguably the SearchPage struct from crate::app should instead be something like a Finder struct here which we then import there.
+
 // TODO: Remove once searchers have been added and integrated.
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
@@ -140,8 +142,46 @@ mod tests {
 
     #[test]
     fn parse_cached_darwin() {
-        let matcher = new_searcher(Source::NixDarwin, false);
+        let mut matcher = new_searcher(Source::NixDarwin, false);
+        // Make sure the matcher is fully initialized before taking a snapshot
+        while matcher.tick(1000).running {}
         let snap = matcher.snapshot();
         assert!(snap.item_count() > 100);
+    }
+
+    #[test]
+    fn parse_cached_nixos() {
+        let mut matcher = new_searcher(Source::NixOS, false);
+        // Make sure the matcher is fully initialized before taking a snapshot
+        while matcher.tick(1000).running {}
+        let snap = matcher.snapshot();
+        assert!(snap.item_count() > 10000);
+    }
+
+    #[test]
+    fn parse_cached_home_manager() {
+        let mut matcher = new_searcher(Source::HomeManager, false);
+        // Make sure the matcher is fully initialized before taking a snapshot
+        while matcher.tick(1000).running {}
+        let snap = matcher.snapshot();
+        assert!(snap.item_count() > 100);
+    }
+
+    #[test]
+    fn parse_cached_home_manager_nixos() {
+        let mut matcher = new_searcher(Source::HomeManagerNixOS, false);
+        // Make sure the matcher is fully initialized before taking a snapshot
+        while matcher.tick(1000).running {}
+        let snap = matcher.snapshot();
+        assert!(snap.item_count() > 5);
+    }
+
+    #[test]
+    fn parse_cached_home_manager_darwin() {
+        let mut matcher = new_searcher(Source::HomeManagerNixDarwin, false);
+        // Make sure the matcher is fully initialized before taking a snapshot
+        while matcher.tick(1000).running {}
+        let snap = matcher.snapshot();
+        assert!(snap.item_count() > 5);
     }
 }

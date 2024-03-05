@@ -66,6 +66,8 @@ impl SearchPage {
     }
 
     fn get_matcher(&self) -> cell::RefMut<'_, nucleo::Nucleo<Vec<String>>> {
+        // Idea for lazy loading: Make self.matcher a RefCell<Option<...>>. On entering this method, check whether self.matcher is &None. If so, compute a matcher, and do a RefCell::Replace to set self.matcher to Some<matcher>. Then do borrow_mut().
+        // Problem when I first tried that: How do you unwrap an Option behind a RefMut? I couldn't satisfy Rust.
         self.matcher.borrow_mut()
     }
 }
