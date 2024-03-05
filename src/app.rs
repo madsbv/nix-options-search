@@ -7,7 +7,7 @@ use ratatui::{
     symbols::border,
     widgets::{
         block::{Block, Position, Title},
-        Borders, Paragraph,
+        Borders, Paragraph, Tabs,
     },
 };
 use std::cell::{self, RefCell};
@@ -19,6 +19,7 @@ pub struct App {
     // We need `RefCell` because `Nucleo` holds the pattern to search for as internal state, and doing a search requires `&mut Nucleo`. Using RefCell allows us to do the search at render-time, when we know how many results we'll need to populate the window.
     // Alternative: Split the searching step up into the reparse step and a finish step that actually outputs the results.
     pages: Vec<SearchPage>,
+    /// An integer in `0..self.pages.len()`
     active_page: usize,
     exit: bool,
 }
@@ -52,6 +53,7 @@ impl Default for App {
 }
 
 // TODO: Figure out how to make matchers lazy load
+// TODO: Move to search
 struct SearchPage {
     source: Source,
     matcher: RefCell<nucleo::Nucleo<Vec<String>>>,
@@ -66,9 +68,11 @@ impl SearchPage {
     }
 
     fn get_matcher(&self) -> cell::RefMut<'_, nucleo::Nucleo<Vec<String>>> {
-        // Idea for lazy loading: Make self.matcher a RefCell<Option<...>>. On entering this method, check whether self.matcher is &None. If so, compute a matcher, and do a RefCell::Replace to set self.matcher to Some<matcher>. Then do borrow_mut().
-        // Problem when I first tried that: How do you unwrap an Option behind a RefMut? I couldn't satisfy Rust.
         self.matcher.borrow_mut()
+    }
+
+    fn name(&self) -> &'static str {
+        self.source.name()
     }
 }
 
@@ -101,6 +105,16 @@ impl App {
                 self.search_string.pop();
             }
             KeyCode::Esc => self.exit = true,
+            KeyCode::Right => {
+                if self.active_page + 1 < self.pages.len() {
+                    self.active_page += 1;
+                }
+            }
+            KeyCode::Left => {
+                if self.active_page > 0 {
+                    self.active_page -= 1;
+                }
+            }
             _ => {}
         }
     }
@@ -113,11 +127,32 @@ impl Widget for &App {
     {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Length(3)])
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Min(1),
+                Constraint::Length(3),
+            ])
             .split(area);
 
+        // TODO: Styling
+        let tabs = Tabs::new(self.pages.iter().map(|p| p.name()).collect::<Vec<_>>())
+            .block(Block::default().title("Tabs").borders(Borders::ALL))
+            .style(Style::default().white())
+            .highlight_style(Style::default().yellow())
+            .select(self.active_page)
+            // .divider(symbols::DOT)
+            .padding(" ", " ");
+
+        tabs.render(chunks[0], buf);
+
         let title = Title::from(" Nix-darwin options search ".bold());
-        let instructions = Title::from(Line::from(vec![" Quit ".into(), "<Esc> ".yellow().bold()]));
+        let instructions = Title::from(Line::from(vec![
+            "Change tabs ".into(),
+            "<Left>/<Right>".yellow().bold(),
+            "Quit ".into(),
+            "<Esc> ".yellow().bold(),
+        ]));
+
         let results_block = Block::default()
             .title(title.alignment(Alignment::Center))
             .title(
@@ -128,7 +163,7 @@ impl Widget for &App {
             .borders(Borders::ALL)
             .border_set(border::THICK);
 
-        let results_outer_area = chunks[0];
+        let results_outer_area = chunks[1];
         let results_inner_area = results_block.inner(results_outer_area);
 
         // Since `Layout` doesn't have a `block` method, we render it manually
@@ -163,12 +198,14 @@ impl Widget for &App {
         let search_par = Paragraph::new(Text::from(self.search_string.clone().red()))
             .centered()
             .block(search_block);
-        search_par.render(chunks[1], buf);
+        search_par.render(chunks[2], buf);
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // TODO: More key input tests (in particular, that App::active_page stays within bounds).
 
     #[test]
     fn handle_key_event() {

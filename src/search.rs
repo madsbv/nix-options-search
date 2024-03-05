@@ -6,9 +6,12 @@ use nucleo::{Config, Nucleo, Utf32String};
 use crate::opt_data::{parse_options, OptData};
 
 // TODO: Arguably the SearchPage struct from crate::app should instead be something like a Finder struct here which we then import there.
+// TODO: init_nuc is actually kind of concurrent, in that it injects everything into the matcher, but doesn't block while the matcher actually does its thing. So maybe creating the matcher immediately, and letting it do this matching in the background, is the way to go. We could even double down on this, by getting the HTML concurrently with creating the matcher, then doing the injection and tick in a separate thread while returning the matcher immediately. For this we should probably make ureq give a Reader. Can we make tl take and give a reader?
+// Alternatively, we can make the html parsing step return a function that returns the parsed html instead, thus deferring the parsing. We can embed the cache fallback in this function if we do it rigiht.
+// How do we handle fallback to cache with this approach?
+// Maybe we need to do some OnceCell/OnceLock stuff. Would help with concurrency as well.
+// Once implemented, we do want to find a way to make sure that get_matcher blocks until initialization is done.
 
-// TODO: Remove once searchers have been added and integrated.
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 pub enum Source {
     NixDarwin,
@@ -42,6 +45,17 @@ impl Source {
             Self::HomeManagerNixDarwin => &HOME_MANAGER_NIX_DARWIN_CACHED_HTML,
         }
     }
+
+    // Todo: We can just make this an implementation of `std::fmt::Display`
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::NixDarwin => "nix-darwin",
+            Self::NixOS => "nixOS",
+            Self::HomeManager => "home-manager",
+            Self::HomeManagerNixOS => "home-manager-nixOS",
+            Self::HomeManagerNixDarwin => "home-manager-nix-darwin",
+        }
+    }
 }
 
 flate!(static NIX_DARWIN_CACHED_HTML: str from "data/nix-darwin-index.html");
@@ -49,9 +63,6 @@ flate!(static NIXOS_CACHED_HTML: str from "data/nixos-index.html");
 flate!(static HOME_MANAGER_CACHED_HTML: str from "data/home-manager-index.html");
 flate!(static HOME_MANAGER_NIXOS_CACHED_HTML: str from "data/home-manager-nixos-index.html");
 flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-nix-darwin-index.html");
-
-// TODO: Should we rather compress these on disk and take a libflate/zstd dependency (so the source of this package takes up less space)?
-// We could have a 'raw assets' folder in git for version management, and a 'compressed assets' folder that's generated fro the raw assets, and included in the crates.io package and the binary.
 
 pub fn new_searcher(source: Source, try_http: bool) -> Nucleo<Vec<String>> {
     if try_http {

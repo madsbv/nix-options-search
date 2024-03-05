@@ -1,8 +1,8 @@
 use color_eyre::eyre::{ensure, Result};
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
 
-/// Structure of data/index.html (nix-darwin): Each option header is in a <dt>, associated description, type, default, example and link to docs is in a <dd>.
-/// This method assumes that there's an equal number of <dt> and <dd> tags, and that they come paired up one after the other. If the number of <dt> and <dd> tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
+/// Structure of data/index.html (nix-darwin): Each option header is in a `<dt>`, associated description, type, default, example and link to docs is in a `<dd>`.
+/// This method assumes that there's an equal number of `<dt>` and `<dd>` tags, and that they come paired up one after the other. If the number of `<dt>` and `<dd>` tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
 pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> {
     let p = dom.parser();
     let dt_tags = dom
