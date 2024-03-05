@@ -75,6 +75,10 @@ impl OptData<'_> {
                 .to_string(),
         ]
     }
+
+    pub fn num_fields() -> usize {
+        6
+    }
 }
 
 impl std::fmt::Display for OptData<'_> {
