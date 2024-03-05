@@ -104,7 +104,6 @@ impl App {
             KeyCode::Backspace => {
                 self.search_string.pop();
             }
-            KeyCode::Esc => self.exit = true,
             KeyCode::Right => {
                 if self.active_page + 1 < self.pages.len() {
                     self.active_page += 1;
@@ -115,6 +114,7 @@ impl App {
                     self.active_page -= 1;
                 }
             }
+            KeyCode::Esc => self.exit = true,
             _ => {}
         }
     }
@@ -124,6 +124,7 @@ impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
+        // TODO: Consider splitting out the rendering of each section in individual functions/widgets, or just organize code better
     {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -205,16 +206,43 @@ impl Widget for &App {
 mod tests {
     use super::*;
 
-    // TODO: More key input tests (in particular, that App::active_page stays within bounds).
+    // TODO: All of these test currently create an entire app each, including doing all the parsing, which takes a while. Can we get around the parsing?
 
     #[test]
-    fn handle_key_event() {
+    fn modify_search_string() {
         let mut app = App::new();
         // TODO: Get all the different matchers to make sure they're constructed correctly.
 
         app.handle_key_event(KeyCode::Char('w').into());
         assert_eq!(app.search_string, "w".to_string());
 
+        assert!(!app.exit);
+        app.handle_key_event(KeyCode::Esc.into());
+        assert!(app.exit);
+    }
+
+    #[test]
+    fn switch_tabs() {
+        let mut app = App::new();
+        for _ in 0..app.active_page {
+            app.handle_key_event(KeyCode::Left.into());
+        }
+        assert_eq!(app.active_page, 0);
+        app.handle_key_event(KeyCode::Left.into());
+        assert_eq!(app.active_page, 0);
+
+        for i in 1..app.pages.len() - 1 {
+            app.handle_key_event(KeyCode::Right.into());
+            assert_eq!(app.active_page, i);
+        }
+
+        app.handle_key_event(KeyCode::Right.into());
+        assert_eq!(app.active_page, app.pages.len() - 1);
+    }
+
+    #[test]
+    fn quit() {
+        let mut app = App::new();
         assert!(!app.exit);
         app.handle_key_event(KeyCode::Esc.into());
         assert!(app.exit);
