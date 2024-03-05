@@ -1,5 +1,6 @@
 #![warn(clippy::all, clippy::pedantic)]
-// #![warn(clippy::cargo)]
+#![warn(clippy::cargo)]
+#![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::similar_names)]
 
 use color_eyre::eyre::Result;
