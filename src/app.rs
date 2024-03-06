@@ -47,6 +47,13 @@ impl App {
     fn search(&self, max: Option<usize>) -> Vec<Vec<String>> {
         self.find_pattern(&self.search_string, max)
     }
+
+    // For testing
+    #[allow(dead_code)]
+    fn search_blocking(&mut self, max: Option<usize>) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+        assert!(self.active_page < self.pages.len());
+        self.pages[self.active_page].find_blocking(&self.search_string, max)
+    }
 }
 
 impl Default for App {
@@ -121,6 +128,7 @@ impl Widget for &App {
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Min(0),
+                #[allow(clippy::cast_possible_truncation)]
                 Constraint::Length(width_of_tabs_widget as u16),
                 Constraint::Min(0),
             ])
@@ -159,10 +167,9 @@ impl Widget for &App {
         // Since `Layout` doesn't have a `block` method, we render it manually
         results_block.render(results_outer_area, buf);
 
-        // TODO: Don't hard-code the height of an OptDisplay
-        let opt_display_height = 4;
-        // Also decide whether to round up or down
-        let n_opts = results_inner_area.height as usize / opt_display_height;
+        // Add 1 space of padding
+        let vert_space_per_opt_display = OptDisplay::height() + 1;
+        let n_opts = results_inner_area.height as usize / vert_space_per_opt_display;
 
         let results = self
             .search(Some(n_opts))
@@ -174,7 +181,7 @@ impl Widget for &App {
         #[allow(clippy::cast_possible_truncation)]
         let (results_layout, _) = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(results.iter().map(|_| opt_display_height as u16))
+            .constraints(results.iter().map(|_| vert_space_per_opt_display as u16))
             .margin(1)
             .split_with_spacers(results_inner_area); // Constraint implements from<u16>
 
@@ -195,8 +202,6 @@ impl Widget for &App {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // TODO: Test doing searches on each page to make sure initialization doesn't panic.
 
     #[test]
     fn modify_search_string() {
@@ -235,5 +240,26 @@ mod tests {
         assert!(!app.exit);
         app.handle_key_event(KeyCode::Esc.into());
         assert!(app.exit);
+    }
+
+    #[test]
+    fn search_each_tab() {
+        let mut app = App::new();
+        // Make sure we start at the first tab
+        for _ in 0..app.active_page {
+            app.handle_key_event(KeyCode::Left.into());
+        }
+        app.handle_key_event(KeyCode::Char('s').into());
+        for i in 0..app.pages.len() - 1 {
+            assert_eq!(app.active_page, i);
+            assert_ne!(
+                app.search_blocking(Some(10)).expect("search should work").len(),
+                0,
+                "on page {}: {}",
+                app.active_page,
+                app.pages[app.active_page].name()
+            );
+            app.handle_key_event(KeyCode::Right.into());
+        }
     }
 }

@@ -17,13 +17,16 @@ flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-n
 pub struct Finder {
     source: Source,
     searcher: RefCell<Nucleo<Vec<String>>>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl Finder {
     pub fn new(source: Source) -> Self {
+        let (searcher, handle) = new_searcher_concurrent(source, true);
         Finder {
             source,
-            searcher: new_searcher_concurrent(source, true).0.into(),
+            searcher: searcher.into(),
+            handle: Some(handle),
         }
     }
 
@@ -44,6 +47,14 @@ impl Finder {
             Some(n) => res.take(n).collect(),
             None => res.collect(),
         }
+    }
+
+    // For testing purposes
+    pub fn find_blocking(&mut self, pattern: &str, max: Option<usize>) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+        if let Some(handle) = std::mem::take(&mut self.handle) {
+           handle.join()?;
+        }
+        Ok(self.find(pattern, max))
     }
 }
 
