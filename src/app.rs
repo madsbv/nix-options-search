@@ -115,6 +115,16 @@ impl Widget for &App {
             .split(area);
 
         // TODO: Styling
+        let width_of_tabs_widget: usize =
+            self.pages.iter().map(|p| p.name().len()).sum::<usize>() + self.pages.len() * 3 + 1;
+        let tabs_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min(0),
+                Constraint::Length(width_of_tabs_widget as u16),
+                Constraint::Min(0),
+            ])
+            .split(chunks[0]);
         let tabs = Tabs::new(self.pages.iter().map(Finder::name).collect::<Vec<_>>())
             .block(Block::default().title("Tabs").borders(Borders::ALL))
             .style(Style::default().white())
@@ -123,13 +133,13 @@ impl Widget for &App {
             // .divider(symbols::DOT)
             .padding(" ", " ");
 
-        tabs.render(chunks[0], buf);
+        tabs.render(tabs_layout[1], buf);
 
-        let title = Title::from(" Nix-darwin options search ".bold());
+        let title = Title::from(format!(" {} ", self.pages[self.active_page].name()).bold());
         let instructions = Title::from(Line::from(vec![
-            "Change tabs ".into(),
-            "<Left>/<Right>".yellow().bold(),
-            "Quit ".into(),
+            " Change tabs: ".into(),
+            "<Left>/<Right>, ".yellow().bold(),
+            "Quit: ".into(),
             "<Esc> ".yellow().bold(),
         ]));
 

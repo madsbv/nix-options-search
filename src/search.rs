@@ -3,6 +3,7 @@ use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
 use std::cell::{self, RefCell};
+use std::fmt;
 use std::thread::JoinHandle;
 
 use crate::opt_data::{parse_options, OptData};
@@ -30,8 +31,8 @@ impl Finder {
         self.searcher.borrow_mut()
     }
 
-    pub fn name(&self) -> &'static str {
-        self.source.name()
+    pub fn name(&self) -> String {
+        self.source.to_string()
     }
 
     // TODO: How to avoid collecting here and returning iterator directly?
@@ -79,16 +80,18 @@ impl Source {
             Self::HomeManagerNixDarwin => &HOME_MANAGER_NIX_DARWIN_CACHED_HTML,
         }
     }
+}
 
-    // TODO: We can just make this an implementation of `std::fmt::Display`
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::NixDarwin => "nix-darwin",
-            Self::NixOS => "nixOS",
-            Self::HomeManager => "home-manager",
-            Self::HomeManagerNixOS => "home-manager-nixOS",
-            Self::HomeManagerNixDarwin => "home-manager-nix-darwin",
-        }
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            Self::NixDarwin => "Nix-Darwin",
+            Self::NixOS => "NixOS",
+            Self::HomeManager => "Home Manager",
+            Self::HomeManagerNixOS => "Home Manager NixOS",
+            Self::HomeManagerNixDarwin => "Home Manager Nix-Darwin",
+        };
+        write!(f, "{s}")
     }
 }
 
