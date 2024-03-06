@@ -1,8 +1,6 @@
-use color_eyre::eyre::{eyre, Result};
 use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
-use std::cell::{self, RefCell};
 use std::fmt;
 use std::thread::JoinHandle;
 
@@ -16,33 +14,41 @@ flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-n
 
 pub struct Finder {
     source: Source,
-    searcher: RefCell<Nucleo<Vec<String>>>,
+    searcher: Nucleo<Vec<String>>,
     handle: Option<JoinHandle<()>>,
 }
 
 impl Finder {
     pub fn new(source: Source) -> Self {
-        let (searcher, handle) = new_searcher_concurrent(source, true);
+        let (searcher, handle) = new_searcher(source, true);
         Finder {
             source,
-            searcher: searcher.into(),
+            searcher,
             handle: Some(handle),
         }
-    }
-
-    pub fn get_searcher(&self) -> cell::RefMut<'_, Nucleo<Vec<String>>> {
-        self.searcher.borrow_mut()
     }
 
     pub fn name(&self) -> String {
         self.source.to_string()
     }
 
-    // TODO: How to avoid collecting here and returning iterator directly?
-    pub fn find(&self, pattern: &str, max: Option<usize>) -> Vec<Vec<String>> {
-        let mut nuc = self.get_searcher();
-        // TODO: This should not clone
-        let res = find(pattern, &mut nuc).cloned();
+    pub fn init_search(&mut self, pattern: &str) {
+        self.searcher.pattern.reparse(
+            0,
+            pattern,
+            CaseMatching::Ignore,
+            Normalization::Smart,
+            false,
+        );
+        // TODO: Can we avoid this blocking? E.g. by redrawing the app on a timer?
+        while self.searcher.tick(100).running {}
+    }
+
+    pub fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
+        let snap = self.searcher.snapshot();
+        let n = snap.matched_item_count();
+
+        let res = snap.matched_items(0..n).map(|item| item.data).cloned();
         match max {
             Some(n) => res.take(n).collect(),
             None => res.collect(),
@@ -58,7 +64,8 @@ impl Finder {
         if let Some(handle) = std::mem::take(&mut self.handle) {
             handle.join()?;
         }
-        Ok(self.find(pattern, max))
+        self.init_search(pattern);
+        Ok(self.get_results(max))
     }
 }
 
@@ -111,10 +118,7 @@ impl fmt::Display for Source {
 }
 
 /// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
-fn new_searcher_concurrent(
-    source: Source,
-    try_http: bool,
-) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
+fn new_searcher(source: Source, try_http: bool) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
     let opts = move || {
         if try_http {
             if let Ok(res) = ureq::get(source.url()).call() {
@@ -172,93 +176,6 @@ fn new_searcher_concurrent(
     (nuc, handle)
 }
 
-/// Create a new searcher for `source`, with the option to try getting the live html for `source` or going straight to cache.
-/// Blocks until the matcher is completely initialized and has parsed all data, which can take multiple seconds especially for the nixOS data.
-// We keep this around for testing
-#[allow(dead_code)]
-fn new_searcher(source: Source, try_http: bool) -> Nucleo<Vec<String>> {
-    if try_http {
-        if let Ok(res) = ureq::get(source.url()).call() {
-            let mut html = String::new();
-            if res.into_reader().read_to_string(&mut html).is_ok() {
-                if let Ok(searcher) = searcher_from_html(&html) {
-                    return searcher;
-                }
-            }
-        }
-    }
-    searcher_from_html(source.cache()).expect("searcher from cache should always work")
-}
-
-/// Get a searcher from raw HTML string.
-/// Blocks while parsing HTML and injecting data to searcher, but doesn't wait for the data to be processed.
-fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
-    let dom = tl::parse(html, tl::ParserOptions::default())?;
-    let opts = parse_options(&dom)?;
-
-    init_nuc(&opts)
-}
-
-/// Take a non-empty vector of `OptData` as input. The number of columns is determined by the length of `OptData::fields_as_strings()`
-/// Blocks while injecting data into Nucleo, but doesn't wait for the data to be processed.
-fn init_nuc(data: &[OptData]) -> Result<Nucleo<Vec<String>>> {
-    let columns = data
-        .first()
-        .ok_or(eyre!(
-            "the collection of data injected to the searcher should be non-empty"
-        ))?
-        .fields_as_strings()
-        .len();
-    let mut nuc = Nucleo::<Vec<String>>::new(
-        Config::DEFAULT,
-        std::sync::Arc::new(|| ()),
-        None,
-        u32::try_from(columns)?,
-    );
-    let inj = nuc.injector();
-    for d in data {
-        let mut d_strings = d.fields_as_strings();
-        debug_assert_eq!(columns, d_strings.len());
-
-        let d_strings_clone = d_strings.clone();
-        let f = |fill: &mut [Utf32String]| {
-            (0..columns).rev().for_each(|i| {
-                fill[i] = d_strings
-                    .pop()
-                    .expect("all d_strings have the same number of fields")
-                    .into();
-            });
-        };
-        // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
-        // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
-        inj.push(d_strings_clone, f);
-    }
-    nuc.tick(0);
-    Ok(nuc)
-}
-
-/// Convenience function for doing a blocking search on nuc. The best match is first in the output.
-pub fn find<'a, T: Sync + Send + Clone>(
-    pattern: &str,
-    nuc: &'a mut Nucleo<T>,
-) -> impl Iterator<Item = &'a T> + 'a {
-    nuc.pattern.reparse(
-        0,
-        pattern,
-        CaseMatching::Ignore,
-        Normalization::Smart,
-        false,
-    );
-
-    // Blocks until finished
-    while nuc.tick(10).running {}
-
-    let snap = nuc.snapshot();
-    let n = snap.matched_item_count();
-
-    snap.matched_items(0..n).map(|item| item.data)
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -269,7 +186,7 @@ mod tests {
     fn parse_cached() {
         for s in [
             Source::NixDarwin,
-            Source::NixOS,
+            // Source::NixOS, // Very slow to run, and validity of the cache file is also checked by the app tests.
             Source::HomeManager,
             Source::HomeManagerNixOS,
             Source::HomeManagerNixDarwin,
@@ -279,43 +196,14 @@ mod tests {
     }
 
     fn parse_source_from_cache(source: Source) {
-        let mut matcher = new_searcher(source, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 5, "Parsing from {source} failed");
-    }
-
-    /// Test that the concurrently created searcher agrees with one created using blocking methods (easier to reason about). Helps verify that we inject data into the concurrently created searcher correctly.
-    #[test]
-    fn concurrent_vs_blocking() {
-        for s in [
-            Source::NixDarwin,
-            // Source::NixOS, // Omitted by default because of runtime
-            Source::HomeManager,
-            Source::HomeManagerNixOS,
-            Source::HomeManagerNixDarwin,
-        ] {
-            new_searcher_concurrent_correct(s);
-        }
-    }
-
-    fn new_searcher_concurrent_correct(source: Source) {
-        let mut searcher = new_searcher(source, false);
-        let (mut searcher_concurrent, handle) = new_searcher_concurrent(source, false);
-        searcher.tick(0);
+        let (mut searcher, handle) = new_searcher(source, false);
         handle
             .join()
             .expect("parsing cached data should be infallible");
-        while searcher.tick(1000).running || searcher_concurrent.tick(1000).running {}
+        while searcher.tick(1000).running {}
         let snap = searcher.snapshot();
-        let snap_concurrent = searcher_concurrent.snapshot();
 
         // TODO: Do some actual search comparisons instead
-        assert_eq!(
-            snap_concurrent.item_count(),
-            snap.item_count(),
-            "concurrent and blocking searchers disagree for {source}"
-        );
+        assert!(snap.item_count() > 5, "Parsing from {source} failed");
     }
 }

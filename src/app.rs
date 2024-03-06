@@ -14,9 +14,6 @@ use std::io;
 
 pub struct App {
     search_string: String,
-    // We need `RefCell` because `Nucleo` holds the pattern to search for as internal state, and doing a search requires `&mut Nucleo`. Using RefCell allows us to do the search at render-time, when we know how many results we'll need to populate the window.
-    // Alternative: Split the searching step up into the reparse step and a finish step that actually outputs the results.
-    // TODO: Implement the alternative
     pages: Vec<Finder>,
     /// An integer in `0..self.pages.len()`
     active_page: usize,
@@ -39,18 +36,22 @@ impl App {
         }
     }
 
-    fn find_pattern(&self, pattern: &str, max: Option<usize>) -> Vec<Vec<String>> {
+    fn init_search(&mut self) {
         assert!(self.active_page < self.pages.len());
-        self.pages[self.active_page].find(pattern, max)
+        self.pages[self.active_page].init_search(&self.search_string);
     }
 
-    fn search(&self, max: Option<usize>) -> Vec<Vec<String>> {
-        self.find_pattern(&self.search_string, max)
+    fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
+        assert!(self.active_page < self.pages.len());
+        self.pages[self.active_page].get_results(max)
     }
 
     // For testing
     #[allow(dead_code)]
-    fn search_blocking(&mut self, max: Option<usize>) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+    fn search_blocking(
+        &mut self,
+        max: Option<usize>,
+    ) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
         assert!(self.active_page < self.pages.len());
         self.pages[self.active_page].find_blocking(&self.search_string, max)
     }
@@ -81,6 +82,7 @@ impl App {
             Event::Key(key) if key.kind == KeyEventKind::Press => self.handle_key_event(key),
             _ => {}
         };
+        self.init_search();
         Ok(())
     }
 
@@ -172,7 +174,7 @@ impl Widget for &App {
         let n_opts = results_inner_area.height as usize / vert_space_per_opt_display;
 
         let results = self
-            .search(Some(n_opts))
+            .get_results(Some(n_opts))
             .into_iter()
             .map(|v| OptDisplay::from_vec(v.clone()))
             .collect::<Vec<_>>();
@@ -253,7 +255,9 @@ mod tests {
         for i in 0..app.pages.len() - 1 {
             assert_eq!(app.active_page, i);
             assert_ne!(
-                app.search_blocking(Some(10)).expect("search should work").len(),
+                app.search_blocking(Some(10))
+                    .expect("search should work")
+                    .len(),
                 0,
                 "on page {}: {}",
                 app.active_page,
