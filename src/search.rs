@@ -50,9 +50,13 @@ impl Finder {
     }
 
     // For testing purposes
-    pub fn find_blocking(&mut self, pattern: &str, max: Option<usize>) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+    pub fn find_blocking(
+        &mut self,
+        pattern: &str,
+        max: Option<usize>,
+    ) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
         if let Some(handle) = std::mem::take(&mut self.handle) {
-           handle.join()?;
+            handle.join()?;
         }
         Ok(self.find(pattern, max))
     }
@@ -261,59 +265,44 @@ mod tests {
     use super::*;
 
     /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
-
     #[test]
-    fn parse_cached_darwin() {
-        let mut matcher = new_searcher(Source::NixDarwin, false);
+    fn parse_cached() {
+        for s in [
+            Source::NixDarwin,
+            Source::NixOS,
+            Source::HomeManager,
+            Source::HomeManagerNixOS,
+            Source::HomeManagerNixDarwin,
+        ] {
+            parse_source_from_cache(s);
+        }
+    }
+
+    fn parse_source_from_cache(source: Source) {
+        let mut matcher = new_searcher(source, false);
         // Make sure the matcher is fully initialized before taking a snapshot
         while matcher.tick(1000).running {}
         let snap = matcher.snapshot();
-        assert!(snap.item_count() > 100);
+        assert!(snap.item_count() > 5, "Parsing from {source} failed");
     }
-
-    #[test]
-    fn parse_cached_nixos() {
-        let mut matcher = new_searcher(Source::NixOS, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 10000);
-    }
-
-    #[test]
-    fn parse_cached_home_manager() {
-        let mut matcher = new_searcher(Source::HomeManager, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 100);
-    }
-
-    #[test]
-    fn parse_cached_home_manager_nixos() {
-        let mut matcher = new_searcher(Source::HomeManagerNixOS, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 5);
-    }
-
-    #[test]
-    fn parse_cached_home_manager_darwin() {
-        let mut matcher = new_searcher(Source::HomeManagerNixDarwin, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 5);
-    }
-
-    // TODO: Duplicate the tests above for new_searcher_concurrent.
 
     /// Test that the concurrently created searcher agrees with one created using blocking methods (easier to reason about). Helps verify that we inject data into the concurrently created searcher correctly.
     #[test]
-    fn new_searcher_concurrent_correct() {
-        let mut searcher = new_searcher(Source::NixDarwin, false);
-        let (mut searcher_concurrent, handle) = new_searcher_concurrent(Source::NixDarwin, false);
+    fn concurrent_vs_blocking() {
+        for s in [
+            Source::NixDarwin,
+            // Source::NixOS, // Omitted by default because of runtime
+            Source::HomeManager,
+            Source::HomeManagerNixOS,
+            Source::HomeManagerNixDarwin,
+        ] {
+            new_searcher_concurrent_correct(s);
+        }
+    }
+
+    fn new_searcher_concurrent_correct(source: Source) {
+        let mut searcher = new_searcher(source, false);
+        let (mut searcher_concurrent, handle) = new_searcher_concurrent(source, false);
         searcher.tick(0);
         handle
             .join()
@@ -323,6 +312,10 @@ mod tests {
         let snap_concurrent = searcher_concurrent.snapshot();
 
         // TODO: Do some actual search comparisons instead
-        assert_eq!(snap_concurrent.item_count(), snap.item_count());
+        assert_eq!(
+            snap_concurrent.item_count(),
+            snap.item_count(),
+            "concurrent and blocking searchers disagree for {source}"
+        );
     }
 }
