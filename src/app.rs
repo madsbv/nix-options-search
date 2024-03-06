@@ -77,17 +77,18 @@ impl App {
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
-        // Blocks until a key is pressed
         match event::read()? {
             Event::Key(key) if key.kind == KeyEventKind::Press => self.handle_key_event(key),
             _ => {}
         };
+
         self.init_search();
         Ok(())
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
+            // TODO: We can easily use nucleo::MultiPattern::reparse's additional optimizations via the append flag by keeping an 'append' field on App, setting it to 'true' on every KeyCode::Char event, and false on KeyCode::Backspace.
             KeyCode::Char(c) => self.search_string.push(c),
             KeyCode::Backspace => {
                 self.search_string.pop();

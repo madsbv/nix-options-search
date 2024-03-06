@@ -40,8 +40,9 @@ impl Finder {
             Normalization::Smart,
             false,
         );
-        // TODO: Can we avoid this blocking? E.g. by redrawing the app on a timer?
-        while self.searcher.tick(100).running {}
+        // TODO: Get rid of this block by instead using Nucleo.notify to somehow hook into self.handle_events and avoid blocking on event::read when results are waiting.
+        // An MPSC channel with a Sender passed to the notify closure should do.
+        while self.searcher.tick(1000).running {}
     }
 
     pub fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
@@ -205,5 +206,18 @@ mod tests {
 
         // TODO: Do some actual search comparisons instead
         assert!(snap.item_count() > 5, "Parsing from {source} failed");
+    }
+
+    #[test]
+    fn finder() {
+        let source = Source::NixDarwin;
+        let mut f = Finder::new(source);
+        assert!(
+            f.find_blocking("s", Some(5))
+                .expect("find_blocking should not fail")
+                .len()
+                > 1,
+            "Searching with finder from {source} failed"
+        );
     }
 }
