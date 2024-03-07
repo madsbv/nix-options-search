@@ -15,7 +15,7 @@ flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-n
 pub struct Finder {
     source: Source,
     searcher: Nucleo<Vec<String>>,
-    handle: Option<JoinHandle<()>>,
+    injection_handle: Option<JoinHandle<()>>,
 }
 
 impl Finder {
@@ -24,7 +24,7 @@ impl Finder {
         Finder {
             source,
             searcher,
-            handle: Some(handle),
+            injection_handle: Some(handle),
         }
     }
 
@@ -32,13 +32,13 @@ impl Finder {
         self.source.to_string()
     }
 
-    pub fn init_search(&mut self, pattern: &str) {
+    pub fn init_search(&mut self, pattern: &str, appended: bool) {
         self.searcher.pattern.reparse(
             0,
             pattern,
             CaseMatching::Ignore,
             Normalization::Smart,
-            false,
+            appended,
         );
         // TODO: Get rid of this block by instead using Nucleo.notify to somehow hook into self.handle_events and avoid blocking on event::read when results are waiting.
         // An MPSC channel with a Sender passed to the notify closure should do.
@@ -62,10 +62,10 @@ impl Finder {
         pattern: &str,
         max: Option<usize>,
     ) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
-        if let Some(handle) = std::mem::take(&mut self.handle) {
+        if let Some(handle) = std::mem::take(&mut self.injection_handle) {
             handle.join()?;
         }
-        self.init_search(pattern);
+        self.init_search(pattern, false);
         Ok(self.get_results(max))
     }
 }

@@ -12,11 +12,14 @@ use ratatui::{
 };
 use std::io;
 
+// XXX: Optimization idea: Have a "results cache stack" where, each time search_string is appended to, we push the current search results; and when Backspace is pressed, instead of re-searching we just pop the stack. On tab change, we have to clear the stack. Might not be worth it.
 pub struct App {
     search_string: String,
     pages: Vec<Finder>,
-    /// An integer in `0..self.pages.len()`
+    // An integer in `0..self.pages.len()`
     active_page: usize,
+    // To use Nucleo's append optimization
+    appended: bool,
     exit: bool,
 }
 
@@ -32,13 +35,14 @@ impl App {
                 Finder::new(Source::HomeManagerNixDarwin),
             ],
             active_page: 0,
+            appended: false,
             exit: false,
         }
     }
 
     fn init_search(&mut self) {
         assert!(self.active_page < self.pages.len());
-        self.pages[self.active_page].init_search(&self.search_string);
+        self.pages[self.active_page].init_search(&self.search_string, self.appended);
     }
 
     fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
@@ -88,19 +92,24 @@ impl App {
 
     fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
-            // TODO: We can easily use nucleo::MultiPattern::reparse's additional optimizations via the append flag by keeping an 'append' field on App, setting it to 'true' on every KeyCode::Char event, and false on KeyCode::Backspace.
-            KeyCode::Char(c) => self.search_string.push(c),
+            KeyCode::Char(c) => {
+                self.search_string.push(c);
+                self.appended = true;
+            }
             KeyCode::Backspace => {
                 self.search_string.pop();
+                self.appended = false;
             }
             KeyCode::Right => {
                 if self.active_page + 1 < self.pages.len() {
                     self.active_page += 1;
+                    self.appended = false;
                 }
             }
             KeyCode::Left => {
                 if self.active_page > 0 {
                     self.active_page -= 1;
+                    self.appended = false;
                 }
             }
             KeyCode::Esc => self.exit = true,
