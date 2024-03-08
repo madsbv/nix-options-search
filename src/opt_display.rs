@@ -108,4 +108,8 @@ impl OptDisplay {
             example: opt.next().unwrap_or_default(),
         }
     }
+
+    pub fn height() -> usize {
+        3
+    }
 }

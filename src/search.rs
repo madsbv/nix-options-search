@@ -1,8 +1,8 @@
-use color_eyre::eyre::{eyre, Result};
 use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
-use std::cell::{self, RefCell};
+use std::fmt;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
 
 use crate::opt_data::{parse_options, OptData};
@@ -13,36 +13,74 @@ flate!(static HOME_MANAGER_CACHED_HTML: str from "data/home-manager-index.html")
 flate!(static HOME_MANAGER_NIXOS_CACHED_HTML: str from "data/home-manager-nixos-index.html");
 flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-nix-darwin-index.html");
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum InputStatus {
+    Unchanged,
+    Append,
+    Change,
+}
+
 pub struct Finder {
     source: Source,
-    searcher: RefCell<Nucleo<Vec<String>>>,
+    // TODO: Can we optimize memory usage by making this take Cows?
+    searcher: Nucleo<Vec<String>>,
+    injection_handle: Option<JoinHandle<()>>,
+    pub(crate) results_waiting: Receiver<()>,
 }
 
 impl Finder {
     pub fn new(source: Source) -> Self {
+        let (send, recv) = channel();
+        let (searcher, handle) = new_searcher(source, true, send, true);
         Finder {
             source,
-            searcher: new_searcher_concurrent(source, true).0.into(),
+            searcher,
+            injection_handle: Some(handle),
+            results_waiting: recv,
         }
     }
 
-    pub fn get_searcher(&self) -> cell::RefMut<'_, Nucleo<Vec<String>>> {
-        self.searcher.borrow_mut()
+    pub fn name(&self) -> String {
+        self.source.to_string()
     }
 
-    pub fn name(&self) -> &'static str {
-        self.source.name()
+    pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
+        if input_status != InputStatus::Unchanged {
+            self.searcher.pattern.reparse(
+                0,
+                pattern,
+                CaseMatching::Ignore,
+                Normalization::Smart,
+                // NOTE: As far as I can tell, the optimization that this enables is that if we append to the search string, then any item that had score 0 before will still have score 0, so we don't have to rerun scoring against those items. We still run scoring as usual against all other items.
+                input_status == InputStatus::Append,
+            );
+        }
+        self.searcher.tick(10);
     }
 
-    // TODO: How to avoid collecting here and returning iterator directly?
-    pub fn find(&self, pattern: &str, max: Option<usize>) -> Vec<Vec<String>> {
-        let mut nuc = self.get_searcher();
-        // TODO: This should not clone
-        let res = find(pattern, &mut nuc).cloned();
+    pub fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
+        let snap = self.searcher.snapshot();
+        let n = snap.matched_item_count();
+
+        let res = snap.matched_items(0..n).map(|item| item.data).cloned();
         match max {
             Some(n) => res.take(n).collect(),
             None => res.collect(),
         }
+    }
+
+    // For testing purposes
+    pub fn find_blocking(
+        &mut self,
+        pattern: &str,
+        max: Option<usize>,
+    ) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+        if let Some(handle) = std::mem::take(&mut self.injection_handle) {
+            handle.join()?;
+        }
+        self.init_search(pattern, InputStatus::Change);
+        while self.searcher.tick(1000).running {}
+        Ok(self.get_results(max))
     }
 }
 
@@ -79,23 +117,27 @@ impl Source {
             Self::HomeManagerNixDarwin => &HOME_MANAGER_NIX_DARWIN_CACHED_HTML,
         }
     }
+}
 
-    // TODO: We can just make this an implementation of `std::fmt::Display`
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::NixDarwin => "nix-darwin",
-            Self::NixOS => "nixOS",
-            Self::HomeManager => "home-manager",
-            Self::HomeManagerNixOS => "home-manager-nixOS",
-            Self::HomeManagerNixDarwin => "home-manager-nix-darwin",
-        }
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            Self::NixDarwin => "Nix-Darwin",
+            Self::NixOS => "NixOS",
+            Self::HomeManager => "Home Manager",
+            Self::HomeManagerNixOS => "Home Manager NixOS",
+            Self::HomeManagerNixDarwin => "Home Manager Nix-Darwin",
+        };
+        write!(f, "{s}")
     }
 }
 
 /// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
-fn new_searcher_concurrent(
+fn new_searcher(
     source: Source,
     try_http: bool,
+    notify_ch: Sender<()>,
+    merge_columns: bool,
 ) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
     let opts = move || {
         if try_http {
@@ -120,11 +162,19 @@ fn new_searcher_concurrent(
     };
 
     // I think we have to hard-code this with concurrent injection
-    let columns = OptData::num_fields();
+    let columns = if merge_columns {
+        OptData::num_fields()
+    } else {
+        1
+    };
 
     let mut nuc = Nucleo::<Vec<String>>::new(
         Config::DEFAULT,
-        std::sync::Arc::new(|| ()),
+        std::sync::Arc::new(move || {
+            // NOTE: Can fail, but failure doesn't break the program as a whole.
+            let _ = notify_ch.send(());
+        }),
+        // NOTE: There might be room for some optimization in thread allocation here, either by capping the number of threads for each Nucleo instance, or using the multi-column capabilities to merge the instances together.
         None,
         u32::try_from(columns).expect("number of columns fits in a u32"),
     );
@@ -137,108 +187,24 @@ fn new_searcher_concurrent(
 
             let d_strings_clone = d.clone();
             let f = |fill: &mut [Utf32String]| {
-                (0..columns).rev().for_each(|i| {
-                    fill[i] = d
-                        .pop()
-                        .expect("all d_strings have the same number of fields")
-                        .into();
-                });
+                if merge_columns {
+                    fill[0] = d.join("\n").into();
+                } else {
+                    (0..columns).rev().for_each(|i| {
+                        fill[i] = d
+                            .pop()
+                            .expect("all d_strings have the same number of fields")
+                            .into();
+                    });
+                }
             };
             // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
             // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
             inj.push(d_strings_clone, f);
         }
     });
-
     nuc.tick(0);
     (nuc, handle)
-}
-
-/// Create a new searcher for `source`, with the option to try getting the live html for `source` or going straight to cache.
-/// Blocks until the matcher is completely initialized and has parsed all data, which can take multiple seconds especially for the nixOS data.
-// We keep this around for testing
-#[allow(dead_code)]
-fn new_searcher(source: Source, try_http: bool) -> Nucleo<Vec<String>> {
-    if try_http {
-        if let Ok(res) = ureq::get(source.url()).call() {
-            let mut html = String::new();
-            if res.into_reader().read_to_string(&mut html).is_ok() {
-                if let Ok(searcher) = searcher_from_html(&html) {
-                    return searcher;
-                }
-            }
-        }
-    }
-    searcher_from_html(source.cache()).expect("searcher from cache should always work")
-}
-
-/// Get a searcher from raw HTML string.
-/// Blocks while parsing HTML and injecting data to searcher, but doesn't wait for the data to be processed.
-fn searcher_from_html(html: &str) -> Result<Nucleo<Vec<String>>> {
-    let dom = tl::parse(html, tl::ParserOptions::default())?;
-    let opts = parse_options(&dom)?;
-
-    init_nuc(&opts)
-}
-
-/// Take a non-empty vector of `OptData` as input. The number of columns is determined by the length of `OptData::fields_as_strings()`
-/// Blocks while injecting data into Nucleo, but doesn't wait for the data to be processed.
-fn init_nuc(data: &[OptData]) -> Result<Nucleo<Vec<String>>> {
-    let columns = data
-        .first()
-        .ok_or(eyre!(
-            "the collection of data injected to the searcher should be non-empty"
-        ))?
-        .fields_as_strings()
-        .len();
-    let mut nuc = Nucleo::<Vec<String>>::new(
-        Config::DEFAULT,
-        std::sync::Arc::new(|| ()),
-        None,
-        u32::try_from(columns)?,
-    );
-    let inj = nuc.injector();
-    for d in data {
-        let mut d_strings = d.fields_as_strings();
-        debug_assert_eq!(columns, d_strings.len());
-
-        let d_strings_clone = d_strings.clone();
-        let f = |fill: &mut [Utf32String]| {
-            (0..columns).rev().for_each(|i| {
-                fill[i] = d_strings
-                    .pop()
-                    .expect("all d_strings have the same number of fields")
-                    .into();
-            });
-        };
-        // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
-        // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
-        inj.push(d_strings_clone, f);
-    }
-    nuc.tick(0);
-    Ok(nuc)
-}
-
-/// Convenience function for doing a blocking search on nuc. The best match is first in the output.
-pub fn find<'a, T: Sync + Send + Clone>(
-    pattern: &str,
-    nuc: &'a mut Nucleo<T>,
-) -> impl Iterator<Item = &'a T> + 'a {
-    nuc.pattern.reparse(
-        0,
-        pattern,
-        CaseMatching::Ignore,
-        Normalization::Smart,
-        false,
-    );
-
-    // Blocks until finished
-    while nuc.tick(10).running {}
-
-    let snap = nuc.snapshot();
-    let n = snap.matched_item_count();
-
-    snap.matched_items(0..n).map(|item| item.data)
 }
 
 #[cfg(test)]
@@ -247,68 +213,66 @@ mod tests {
     use super::*;
 
     /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
-
     #[test]
-    fn parse_cached_darwin() {
-        let mut matcher = new_searcher(Source::NixDarwin, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 100);
+    fn parse_caches() {
+        let mut handles = vec![];
+        for s in [
+            Source::NixDarwin,
+            Source::NixOS,
+            Source::HomeManager,
+            Source::HomeManagerNixOS,
+            Source::HomeManagerNixDarwin,
+        ] {
+            handles.push((s, std::thread::spawn(move || parse_source_from_cache(s))));
+        }
+        for h in handles {
+            assert!(h.1.join().is_ok(), "Parsing cache for {} failed", h.0);
+        }
     }
 
-    #[test]
-    fn parse_cached_nixos() {
-        let mut matcher = new_searcher(Source::NixOS, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 10000);
-    }
-
-    #[test]
-    fn parse_cached_home_manager() {
-        let mut matcher = new_searcher(Source::HomeManager, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 100);
-    }
-
-    #[test]
-    fn parse_cached_home_manager_nixos() {
-        let mut matcher = new_searcher(Source::HomeManagerNixOS, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 5);
-    }
-
-    #[test]
-    fn parse_cached_home_manager_darwin() {
-        let mut matcher = new_searcher(Source::HomeManagerNixDarwin, false);
-        // Make sure the matcher is fully initialized before taking a snapshot
-        while matcher.tick(1000).running {}
-        let snap = matcher.snapshot();
-        assert!(snap.item_count() > 5);
-    }
-
-    // TODO: Duplicate the tests above for new_searcher_concurrent.
-
-    /// Test that the concurrently created searcher agrees with one created using blocking methods (easier to reason about). Helps verify that we inject data into the concurrently created searcher correctly.
-    #[test]
-    fn new_searcher_concurrent_correct() {
-        let mut searcher = new_searcher(Source::NixDarwin, false);
-        let (mut searcher_concurrent, handle) = new_searcher_concurrent(Source::NixDarwin, false);
-        searcher.tick(0);
+    fn parse_source_from_cache(source: Source) {
+        let (send, _) = channel();
+        let (mut searcher, handle) = new_searcher(source, false, send, true);
         handle
             .join()
             .expect("parsing cached data should be infallible");
-        while searcher.tick(1000).running || searcher_concurrent.tick(1000).running {}
+        while searcher.tick(1000).running {}
         let snap = searcher.snapshot();
-        let snap_concurrent = searcher_concurrent.snapshot();
 
         // TODO: Do some actual search comparisons instead
-        assert_eq!(snap_concurrent.item_count(), snap.item_count());
+        assert!(snap.item_count() > 5, "Parsing from {source} failed");
+    }
+
+    /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
+    #[test]
+    fn test_finders() {
+        let mut handles = vec![];
+        for s in [
+            Source::NixDarwin,
+            Source::NixOS, // While slow, running this is necessary to sufficiently test the find_blocking method
+            Source::HomeManager,
+            Source::HomeManagerNixOS,
+            Source::HomeManagerNixDarwin,
+        ] {
+            handles.push((s, std::thread::spawn(move || finder(s))));
+        }
+        for h in handles {
+            assert!(
+                h.1.join().is_ok(),
+                "Searching with Finder for {} failed",
+                h.0
+            );
+        }
+    }
+
+    fn finder(source: Source) {
+        let mut f = Finder::new(source);
+        assert_ne!(
+            f.find_blocking("s", Some(5))
+                .expect("find_blocking should not fail")
+                .len(),
+            0,
+            "Searching with finder from {source} failed"
+        );
     }
 }

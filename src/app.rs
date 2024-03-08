@@ -1,5 +1,5 @@
 use crate::opt_display::OptDisplay;
-use crate::search::{Finder, Source};
+use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -11,15 +11,16 @@ use ratatui::{
     },
 };
 use std::io;
+use std::time::Duration;
 
+// XXX: Optimization idea: Have a "results cache stack" where, each time search_string is appended to, we push the current search results; and when Backspace is pressed, instead of re-searching we just pop the stack. On tab change, we have to clear the stack. Might not be worth it.
 pub struct App {
     search_string: String,
-    // We need `RefCell` because `Nucleo` holds the pattern to search for as internal state, and doing a search requires `&mut Nucleo`. Using RefCell allows us to do the search at render-time, when we know how many results we'll need to populate the window.
-    // Alternative: Split the searching step up into the reparse step and a finish step that actually outputs the results.
-    // TODO: Implement the alternative
     pages: Vec<Finder>,
-    /// An integer in `0..self.pages.len()`
+    // An integer in `0..self.pages.len()`
     active_page: usize,
+    // To use Nucleo's append optimization and avoid reparsing if pattern hasn't changed
+    input_status: InputStatus,
     exit: bool,
 }
 
@@ -35,17 +36,30 @@ impl App {
                 Finder::new(Source::HomeManagerNixDarwin),
             ],
             active_page: 0,
+            input_status: InputStatus::Change,
             exit: false,
         }
     }
 
-    fn find_pattern(&self, pattern: &str, max: Option<usize>) -> Vec<Vec<String>> {
+    fn init_search(&mut self) {
         assert!(self.active_page < self.pages.len());
-        self.pages[self.active_page].find(pattern, max)
+        self.pages[self.active_page].init_search(&self.search_string, self.input_status);
+        self.input_status = InputStatus::Unchanged;
     }
 
-    fn search(&self, max: Option<usize>) -> Vec<Vec<String>> {
-        self.find_pattern(&self.search_string, max)
+    fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
+        assert!(self.active_page < self.pages.len());
+        self.pages[self.active_page].get_results(max)
+    }
+
+    // For testing
+    #[allow(dead_code)]
+    fn search_blocking(
+        &mut self,
+        max: Option<usize>,
+    ) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+        assert!(self.active_page < self.pages.len());
+        self.pages[self.active_page].find_blocking(&self.search_string, max)
     }
 }
 
@@ -69,7 +83,19 @@ impl App {
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
-        // Blocks until a key is pressed
+        // If recv sees that results are waiting while we're waiting for user input, return early and render the pending results.
+        // NOTE: Semantically, this should really be a `select!` statement in async context.
+        // This polling does take an appreciable amount of CPU time.
+        while let Ok(false) = event::poll(Duration::from_millis(500)) {
+            if self.pages[self.active_page]
+                .results_waiting
+                .try_recv()
+                .is_ok()
+            {
+                self.init_search();
+                return Ok(());
+            }
+        }
         match event::read()? {
             Event::Key(key) if key.kind == KeyEventKind::Press => self.handle_key_event(key),
             _ => {}
@@ -79,23 +105,30 @@ impl App {
 
     fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
-            KeyCode::Char(c) => self.search_string.push(c),
+            KeyCode::Char(c) => {
+                self.search_string.push(c);
+                self.input_status = InputStatus::Append;
+            }
             KeyCode::Backspace => {
                 self.search_string.pop();
+                self.input_status = InputStatus::Change;
             }
             KeyCode::Right => {
                 if self.active_page + 1 < self.pages.len() {
                     self.active_page += 1;
+                    self.input_status = InputStatus::Change;
                 }
             }
             KeyCode::Left => {
                 if self.active_page > 0 {
                     self.active_page -= 1;
+                    self.input_status = InputStatus::Change;
                 }
             }
             KeyCode::Esc => self.exit = true,
             _ => {}
         }
+        self.init_search();
     }
 }
 
@@ -115,6 +148,17 @@ impl Widget for &App {
             .split(area);
 
         // TODO: Styling
+        let width_of_tabs_widget: usize =
+            self.pages.iter().map(|p| p.name().len()).sum::<usize>() + self.pages.len() * 3 + 1;
+        let tabs_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min(0),
+                #[allow(clippy::cast_possible_truncation)]
+                Constraint::Length(width_of_tabs_widget as u16),
+                Constraint::Min(0),
+            ])
+            .split(chunks[0]);
         let tabs = Tabs::new(self.pages.iter().map(Finder::name).collect::<Vec<_>>())
             .block(Block::default().title("Tabs").borders(Borders::ALL))
             .style(Style::default().white())
@@ -123,13 +167,13 @@ impl Widget for &App {
             // .divider(symbols::DOT)
             .padding(" ", " ");
 
-        tabs.render(chunks[0], buf);
+        tabs.render(tabs_layout[1], buf);
 
-        let title = Title::from(" Nix-darwin options search ".bold());
+        let title = Title::from(format!(" {} ", self.pages[self.active_page].name()).bold());
         let instructions = Title::from(Line::from(vec![
-            "Change tabs ".into(),
-            "<Left>/<Right>".yellow().bold(),
-            "Quit ".into(),
+            " Change tabs: ".into(),
+            "<Left>/<Right>, ".yellow().bold(),
+            "Quit: ".into(),
             "<Esc> ".yellow().bold(),
         ]));
 
@@ -149,13 +193,12 @@ impl Widget for &App {
         // Since `Layout` doesn't have a `block` method, we render it manually
         results_block.render(results_outer_area, buf);
 
-        // TODO: Don't hard-code the height of an OptDisplay
-        let opt_display_height = 4;
-        // Also decide whether to round up or down
-        let n_opts = results_inner_area.height as usize / opt_display_height;
+        // Add 1 space of padding
+        let vert_space_per_opt_display = OptDisplay::height() + 1;
+        let n_opts = results_inner_area.height as usize / vert_space_per_opt_display;
 
         let results = self
-            .search(Some(n_opts))
+            .get_results(Some(n_opts))
             .into_iter()
             .map(|v| OptDisplay::from_vec(v.clone()))
             .collect::<Vec<_>>();
@@ -164,7 +207,7 @@ impl Widget for &App {
         #[allow(clippy::cast_possible_truncation)]
         let (results_layout, _) = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(results.iter().map(|_| opt_display_height as u16))
+            .constraints(results.iter().map(|_| vert_space_per_opt_display as u16))
             .margin(1)
             .split_with_spacers(results_inner_area); // Constraint implements from<u16>
 
@@ -185,8 +228,6 @@ impl Widget for &App {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // TODO: Test doing searches on each page to make sure initialization doesn't panic.
 
     #[test]
     fn modify_search_string() {
@@ -225,5 +266,29 @@ mod tests {
         assert!(!app.exit);
         app.handle_key_event(KeyCode::Esc.into());
         assert!(app.exit);
+    }
+
+    // Tests against internet-acquired HTML if possible
+    #[test]
+    fn search_each_tab() {
+        let mut app = App::new();
+        // Make sure we start at the first tab
+        for _ in 0..app.active_page {
+            app.handle_key_event(KeyCode::Left.into());
+        }
+        app.handle_key_event(KeyCode::Char('s').into());
+        for i in 0..app.pages.len() - 1 {
+            assert_eq!(app.active_page, i);
+            assert_ne!(
+                app.search_blocking(Some(10))
+                    .expect("search should work")
+                    .len(),
+                0,
+                "on page {}: {}",
+                app.active_page,
+                app.pages[app.active_page].name()
+            );
+            app.handle_key_event(KeyCode::Right.into());
+        }
     }
 }
