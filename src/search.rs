@@ -30,7 +30,7 @@ pub struct Finder {
 impl Finder {
     pub fn new(source: Source) -> Self {
         let (send, recv) = channel();
-        let (searcher, handle) = new_searcher(source, true, send);
+        let (searcher, handle) = new_searcher(source, true, send, true);
         Finder {
             source,
             searcher,
@@ -45,7 +45,6 @@ impl Finder {
 
     pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
         if input_status != InputStatus::Unchanged {
-            // TODO: I think we're only searching against the first (name) column
             self.searcher.pattern.reparse(
                 0,
                 pattern,
@@ -136,6 +135,7 @@ fn new_searcher(
     source: Source,
     try_http: bool,
     notify_ch: Sender<()>,
+    merge_columns: bool,
 ) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
     let opts = move || {
         if try_http {
@@ -160,12 +160,15 @@ fn new_searcher(
     };
 
     // I think we have to hard-code this with concurrent injection
-    let columns = OptData::num_fields();
+    let columns = if merge_columns {
+        OptData::num_fields()
+    } else {
+        1
+    };
 
     let mut nuc = Nucleo::<Vec<String>>::new(
         Config::DEFAULT,
         std::sync::Arc::new(move || {
-            // TODO: Remove debug `expect`
             notify_ch
                 .send(())
                 .expect("channel sender works, and receiver lives until end of program");
@@ -182,12 +185,16 @@ fn new_searcher(
 
             let d_strings_clone = d.clone();
             let f = |fill: &mut [Utf32String]| {
-                (0..columns).rev().for_each(|i| {
-                    fill[i] = d
-                        .pop()
-                        .expect("all d_strings have the same number of fields")
-                        .into();
-                });
+                if merge_columns {
+                    fill[0] = d.join("\n").into();
+                } else {
+                    (0..columns).rev().for_each(|i| {
+                        fill[i] = d
+                            .pop()
+                            .expect("all d_strings have the same number of fields")
+                            .into();
+                    });
+                }
             };
             // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
             // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
@@ -220,7 +227,7 @@ mod tests {
 
     fn parse_source_from_cache(source: Source) {
         let (send, _) = channel();
-        let (mut searcher, handle) = new_searcher(source, false, send);
+        let (mut searcher, handle) = new_searcher(source, false, send, true);
         handle
             .join()
             .expect("parsing cached data should be infallible");
