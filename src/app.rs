@@ -92,7 +92,6 @@ impl App {
                 .try_recv()
                 .is_ok()
             {
-                // Reparses if necessary (shouldn't be in this case), and calls tick
                 self.init_search();
                 return Ok(());
             }
@@ -269,6 +268,7 @@ mod tests {
         assert!(app.exit);
     }
 
+    // Tests against internet-acquired HTML if possible
     #[test]
     fn search_each_tab() {
         let mut app = App::new();

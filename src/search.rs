@@ -22,6 +22,7 @@ pub enum InputStatus {
 
 pub struct Finder {
     source: Source,
+    // TODO: Can we optimize memory usage by making this take Cows?
     searcher: Nucleo<Vec<String>>,
     injection_handle: Option<JoinHandle<()>>,
     pub(crate) results_waiting: Receiver<()>,
@@ -78,6 +79,7 @@ impl Finder {
             handle.join()?;
         }
         self.init_search(pattern, InputStatus::Change);
+        while self.searcher.tick(1000).running {}
         Ok(self.get_results(max))
     }
 }
@@ -169,10 +171,10 @@ fn new_searcher(
     let mut nuc = Nucleo::<Vec<String>>::new(
         Config::DEFAULT,
         std::sync::Arc::new(move || {
-            notify_ch
-                .send(())
-                .expect("channel sender works, and receiver lives until end of program");
+            // NOTE: Can fail, but failure doesn't break the program as a whole.
+            let _ = notify_ch.send(());
         }),
+        // NOTE: There might be room for some optimization in thread allocation here, either by capping the number of threads for each Nucleo instance, or using the multi-column capabilities to merge the instances together.
         None,
         u32::try_from(columns).expect("number of columns fits in a u32"),
     );
@@ -201,7 +203,6 @@ fn new_searcher(
             inj.push(d_strings_clone, f);
         }
     });
-
     nuc.tick(0);
     (nuc, handle)
 }
@@ -213,15 +214,19 @@ mod tests {
 
     /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
     #[test]
-    fn parse_cached() {
+    fn parse_caches() {
+        let mut handles = vec![];
         for s in [
             Source::NixDarwin,
-            // Source::NixOS, // Very slow to run, and validity of the cache file is also checked by the app tests.
+            Source::NixOS,
             Source::HomeManager,
             Source::HomeManagerNixOS,
             Source::HomeManagerNixDarwin,
         ] {
-            parse_source_from_cache(s);
+            handles.push((s, std::thread::spawn(move || parse_source_from_cache(s))));
+        }
+        for h in handles {
+            assert!(h.1.join().is_ok(), "Parsing cache for {} failed", h.0);
         }
     }
 
@@ -238,15 +243,35 @@ mod tests {
         assert!(snap.item_count() > 5, "Parsing from {source} failed");
     }
 
+    /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
     #[test]
-    fn finder() {
-        let source = Source::NixDarwin;
+    fn test_finders() {
+        let mut handles = vec![];
+        for s in [
+            Source::NixDarwin,
+            Source::NixOS, // While slow, running this is necessary to sufficiently test the find_blocking method
+            Source::HomeManager,
+            Source::HomeManagerNixOS,
+            Source::HomeManagerNixDarwin,
+        ] {
+            handles.push((s, std::thread::spawn(move || finder(s))));
+        }
+        for h in handles {
+            assert!(
+                h.1.join().is_ok(),
+                "Searching with Finder for {} failed",
+                h.0
+            );
+        }
+    }
+
+    fn finder(source: Source) {
         let mut f = Finder::new(source);
-        assert!(
+        assert_ne!(
             f.find_blocking("s", Some(5))
                 .expect("find_blocking should not fail")
-                .len()
-                > 1,
+                .len(),
+            0,
             "Searching with finder from {source} failed"
         );
     }
