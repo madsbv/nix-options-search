@@ -1,5 +1,5 @@
 use crate::opt_display::OptDisplay;
-use crate::search::{Finder, Source};
+use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -11,6 +11,7 @@ use ratatui::{
     },
 };
 use std::io;
+use std::time::Duration;
 
 // XXX: Optimization idea: Have a "results cache stack" where, each time search_string is appended to, we push the current search results; and when Backspace is pressed, instead of re-searching we just pop the stack. On tab change, we have to clear the stack. Might not be worth it.
 pub struct App {
@@ -18,8 +19,8 @@ pub struct App {
     pages: Vec<Finder>,
     // An integer in `0..self.pages.len()`
     active_page: usize,
-    // To use Nucleo's append optimization
-    appended: bool,
+    // To use Nucleo's append optimization and avoid reparsing if pattern hasn't changed
+    input_status: InputStatus,
     exit: bool,
 }
 
@@ -35,14 +36,15 @@ impl App {
                 Finder::new(Source::HomeManagerNixDarwin),
             ],
             active_page: 0,
-            appended: false,
+            input_status: InputStatus::Change,
             exit: false,
         }
     }
 
     fn init_search(&mut self) {
         assert!(self.active_page < self.pages.len());
-        self.pages[self.active_page].init_search(&self.search_string, self.appended);
+        self.pages[self.active_page].init_search(&self.search_string, self.input_status);
+        self.input_status = InputStatus::Unchanged;
     }
 
     fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
@@ -81,12 +83,24 @@ impl App {
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
+        // If recv sees that results are waiting while we're waiting for user input, return early and render the pending results.
+        // NOTE: Semantically, this should really be a `select!` statement in async context.
+        // This polling does take an appreciable amount of CPU time.
+        while let Ok(false) = event::poll(Duration::from_millis(500)) {
+            if self.pages[self.active_page]
+                .results_waiting
+                .try_recv()
+                .is_ok()
+            {
+                // Reparses if necessary (shouldn't be in this case), and calls tick
+                self.init_search();
+                return Ok(());
+            }
+        }
         match event::read()? {
             Event::Key(key) if key.kind == KeyEventKind::Press => self.handle_key_event(key),
             _ => {}
         };
-
-        self.init_search();
         Ok(())
     }
 
@@ -94,27 +108,28 @@ impl App {
         match key.code {
             KeyCode::Char(c) => {
                 self.search_string.push(c);
-                self.appended = true;
+                self.input_status = InputStatus::Append;
             }
             KeyCode::Backspace => {
                 self.search_string.pop();
-                self.appended = false;
+                self.input_status = InputStatus::Change;
             }
             KeyCode::Right => {
                 if self.active_page + 1 < self.pages.len() {
                     self.active_page += 1;
-                    self.appended = false;
+                    self.input_status = InputStatus::Change;
                 }
             }
             KeyCode::Left => {
                 if self.active_page > 0 {
                     self.active_page -= 1;
-                    self.appended = false;
+                    self.input_status = InputStatus::Change;
                 }
             }
             KeyCode::Esc => self.exit = true,
             _ => {}
         }
+        self.init_search();
     }
 }
 

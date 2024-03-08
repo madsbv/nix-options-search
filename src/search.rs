@@ -2,6 +2,7 @@ use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
 use std::fmt;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
 
 use crate::opt_data::{parse_options, OptData};
@@ -12,19 +13,29 @@ flate!(static HOME_MANAGER_CACHED_HTML: str from "data/home-manager-index.html")
 flate!(static HOME_MANAGER_NIXOS_CACHED_HTML: str from "data/home-manager-nixos-index.html");
 flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-nix-darwin-index.html");
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum InputStatus {
+    Unchanged,
+    Append,
+    Change,
+}
+
 pub struct Finder {
     source: Source,
     searcher: Nucleo<Vec<String>>,
     injection_handle: Option<JoinHandle<()>>,
+    pub(crate) results_waiting: Receiver<()>,
 }
 
 impl Finder {
     pub fn new(source: Source) -> Self {
-        let (searcher, handle) = new_searcher(source, true);
+        let (send, recv) = channel();
+        let (searcher, handle) = new_searcher(source, true, send);
         Finder {
             source,
             searcher,
             injection_handle: Some(handle),
+            results_waiting: recv,
         }
     }
 
@@ -32,17 +43,19 @@ impl Finder {
         self.source.to_string()
     }
 
-    pub fn init_search(&mut self, pattern: &str, appended: bool) {
-        self.searcher.pattern.reparse(
-            0,
-            pattern,
-            CaseMatching::Ignore,
-            Normalization::Smart,
-            appended,
-        );
-        // TODO: Get rid of this block by instead using Nucleo.notify to somehow hook into self.handle_events and avoid blocking on event::read when results are waiting.
-        // An MPSC channel with a Sender passed to the notify closure should do.
-        while self.searcher.tick(1000).running {}
+    pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
+        if input_status != InputStatus::Unchanged {
+            // TODO: I think we're only searching against the first (name) column
+            self.searcher.pattern.reparse(
+                0,
+                pattern,
+                CaseMatching::Ignore,
+                Normalization::Smart,
+                // NOTE: As far as I can tell, the optimization that this enables is that if we append to the search string, then any item that had score 0 before will still have score 0, so we don't have to rerun scoring against those items. We still run scoring as usual against all other items.
+                input_status == InputStatus::Append,
+            );
+        }
+        self.searcher.tick(10);
     }
 
     pub fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
@@ -65,7 +78,7 @@ impl Finder {
         if let Some(handle) = std::mem::take(&mut self.injection_handle) {
             handle.join()?;
         }
-        self.init_search(pattern, false);
+        self.init_search(pattern, InputStatus::Change);
         Ok(self.get_results(max))
     }
 }
@@ -119,7 +132,11 @@ impl fmt::Display for Source {
 }
 
 /// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
-fn new_searcher(source: Source, try_http: bool) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
+fn new_searcher(
+    source: Source,
+    try_http: bool,
+    notify_ch: Sender<()>,
+) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
     let opts = move || {
         if try_http {
             if let Ok(res) = ureq::get(source.url()).call() {
@@ -147,7 +164,12 @@ fn new_searcher(source: Source, try_http: bool) -> (Nucleo<Vec<String>>, JoinHan
 
     let mut nuc = Nucleo::<Vec<String>>::new(
         Config::DEFAULT,
-        std::sync::Arc::new(|| ()),
+        std::sync::Arc::new(move || {
+            // TODO: Remove debug `expect`
+            notify_ch
+                .send(())
+                .expect("channel sender works, and receiver lives until end of program");
+        }),
         None,
         u32::try_from(columns).expect("number of columns fits in a u32"),
     );
@@ -197,7 +219,8 @@ mod tests {
     }
 
     fn parse_source_from_cache(source: Source) {
-        let (mut searcher, handle) = new_searcher(source, false);
+        let (send, _) = channel();
+        let (mut searcher, handle) = new_searcher(source, false, send);
         handle
             .join()
             .expect("parsing cached data should be infallible");
