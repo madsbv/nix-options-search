@@ -277,7 +277,7 @@ mod tests {
             app.handle_key_event(KeyCode::Left.into());
         }
         app.handle_key_event(KeyCode::Char('s').into());
-        for i in 0..app.pages.len() - 1 {
+        for i in 0..app.pages.len() {
             assert_eq!(app.active_page, i);
             assert_ne!(
                 app.search_blocking(Some(10))
