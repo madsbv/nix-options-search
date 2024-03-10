@@ -1,3 +1,6 @@
 /target
 .cargo-ok
 .DS_Store
+/dhat-heap.json
+/flamegraph.svg
+/TODO.md
