@@ -77,6 +77,11 @@ fn wrapped_paragraph_with_title<'a>(
     }
 
     let height = area.height as usize;
+
+    if height == 1 {
+        return Paragraph::new(Line::from(vec![title_span, content.into()]));
+    }
+
     let width = area.width as usize;
 
     let options = Options::new(width).initial_indent(title);
