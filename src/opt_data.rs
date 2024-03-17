@@ -199,3 +199,24 @@ impl<'dom> OptParser<'dom> {
             .collect::<Vec<_>>()
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_caches_to_opts() {
+        use crate::search::Source;
+        for source in [
+            Source::NixDarwin,
+            Source::NixOS,
+            Source::HomeManager,
+            Source::HomeManagerNixOS,
+            Source::HomeManagerNixDarwin,
+        ] {
+            let dom =
+                tl::parse(source.cache(), tl::ParserOptions::default()).expect("cache should work");
+            let opts = parse_options(&dom).expect("cache should work");
+            assert!(!opts.is_empty());
+        }
+    }
+}

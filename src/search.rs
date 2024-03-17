@@ -108,7 +108,7 @@ impl Source {
         }
     }
 
-    fn cache(self) -> &'static str {
+    pub(crate) fn cache(self) -> &'static str {
         match self {
             Self::NixDarwin => &NIX_DARWIN_CACHED_HTML,
             Self::NixOS => &NIXOS_CACHED_HTML,
