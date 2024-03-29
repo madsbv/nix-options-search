@@ -1,4 +1,4 @@
-use crate::opt_display::OptDisplay;
+use crate::opt_data::OptText;
 use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
@@ -47,7 +47,7 @@ impl App {
         self.input_status = InputStatus::Unchanged;
     }
 
-    fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
+    fn get_results(&self, max: Option<usize>) -> Vec<OptText> {
         assert!(self.active_page < self.pages.len());
         self.pages[self.active_page].get_results(max)
     }
@@ -57,7 +57,7 @@ impl App {
     fn search_blocking(
         &mut self,
         max: Option<usize>,
-    ) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+    ) -> std::result::Result<Vec<OptText>, Box<(dyn std::any::Any + Send + 'static)>> {
         assert!(self.active_page < self.pages.len());
         self.pages[self.active_page].find_blocking(&self.search_string, max)
     }
@@ -194,14 +194,10 @@ impl Widget for &App {
         results_block.render(results_outer_area, buf);
 
         // Add 1 space of padding
-        let vert_space_per_opt_display = OptDisplay::height() + 1;
+        let vert_space_per_opt_display = OptText::HEIGHT + 1;
         let n_opts = results_inner_area.height as usize / vert_space_per_opt_display;
 
-        let results = self
-            .get_results(Some(n_opts))
-            .into_iter()
-            .map(|v| OptDisplay::from_vec(v.clone()))
-            .collect::<Vec<_>>();
+        let results = self.get_results(Some(n_opts));
 
         // TODO: Do something with the spacers?
         #[allow(clippy::cast_possible_truncation)]

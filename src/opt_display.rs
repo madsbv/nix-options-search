@@ -1,14 +1,6 @@
+use crate::opt_data::OptText;
 use ratatui::{prelude::*, widgets::Paragraph};
 use textwrap::{wrap, Options};
-
-#[derive(Clone, Debug)]
-pub struct OptDisplay {
-    name: String,
-    description: String,
-    var_type: String,
-    default: String,
-    example: String,
-}
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -22,7 +14,7 @@ pub struct OptDisplay {
 // TODO: Redo layout. Stack name, type and default on top of each other on the left, and either description and example on top of each other to the right of that, or next to each other in two columns. 'Description' is currently pretty hard to separate from the other pieces.
 // TODO: Bold-font the name?
 // TODO: Consider using tui-widgets-list: https://github.com/preiter93/tui-widget-list/blob/main/examples/demo.gif
-impl Widget for &OptDisplay {
+impl Widget for &OptText {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -101,20 +93,6 @@ fn wrapped_paragraph_with_title<'a>(
     Paragraph::new(Text::from(lines))
 }
 
-impl OptDisplay {
-    /// Create an `OptDisplay` from a vector of Strings, assumed to be in the order `name, description, var_type, default, example`. Defaults to empty strings for any missing entries.
-    pub fn from_vec(mut opt: Vec<String>) -> Self {
-        let mut opt = opt.drain(..);
-        Self {
-            name: opt.next().unwrap_or_default(),
-            description: opt.next().unwrap_or_default(),
-            var_type: opt.next().unwrap_or_default(),
-            default: opt.next().unwrap_or_default(),
-            example: opt.next().unwrap_or_default(),
-        }
-    }
-
-    pub fn height() -> usize {
-        3
-    }
+impl OptText {
+    pub const HEIGHT: usize = 3;
 }

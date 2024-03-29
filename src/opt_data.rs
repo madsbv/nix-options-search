@@ -37,8 +37,8 @@ pub struct OptData<'a> {
 
 use nanohtml2text::html2text;
 impl OptData<'_> {
-    // NOTE: All conversion of HTMLTags to String goes through this function.
-    fn field_to_string(&self, section: &[HTMLTag]) -> String {
+    // NOTE: All conversion of HTMLTags to plaintext goes through this function.
+    fn field_to_text(&self, section: &[HTMLTag]) -> String {
         section
             .iter()
             .map(|t| html2text(&t.outer_html(self.p)))
@@ -46,38 +46,54 @@ impl OptData<'_> {
             .trim()
             .to_string()
     }
+}
 
-    /// Give a purely text-based representation of `self`, stripping out HTML-specific tags like links.
-    pub fn fields_as_strings(&self) -> Vec<String> {
-        vec![
+#[derive(Clone, Debug)]
+pub struct OptText {
+    pub name: String,
+    pub description: String,
+    pub var_type: String,
+    pub default: String,
+    pub example: String,
+    pub declared_by: String,
+}
+
+impl OptText {
+    pub const NUM_FIELDS: usize = 6;
+}
+
+impl From<OptData<'_>> for OptText {
+    fn from(value: OptData<'_>) -> Self {
+        Self {
             // Clean up any " (index.html#...)" links
-            self.field_to_string(&self.name)
+            name: value
+                .field_to_text(&value.name)
                 .split(" (index")
                 .next()
                 .unwrap_or("")
                 .to_string(),
-            self.field_to_string(&self.description),
-            self.field_to_string(&self.var_type)
+            description: value.field_to_text(&value.description),
+            var_type: value
+                .field_to_text(&value.var_type)
                 .trim_start_matches("Type:")
                 .trim()
                 .to_string(),
-            self.field_to_string(&self.default)
+            default: value
+                .field_to_text(&value.default)
                 .trim_start_matches("Default:")
                 .trim()
                 .to_string(),
-            self.field_to_string(&self.example)
+            example: value
+                .field_to_text(&value.example)
                 .trim_start_matches("Example:")
                 .trim()
                 .to_string(),
-            self.field_to_string(&self.declared_by)
+            declared_by: value
+                .field_to_text(&value.declared_by)
                 .trim_start_matches("Declared by:")
                 .trim()
                 .to_string(),
-        ]
-    }
-
-    pub fn num_fields() -> usize {
-        6
+        }
     }
 }
 
@@ -86,12 +102,12 @@ impl std::fmt::Display for OptData<'_> {
         write!(
             f,
             "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}\n--------------",
-            self.field_to_string(&self.name),
-            self.field_to_string(&self.description),
-            self.field_to_string(&self.var_type),
-            self.field_to_string(&self.default),
-            self.field_to_string(&self.example),
-            self.field_to_string(&self.declared_by)
+            self.field_to_text(&self.name),
+            self.field_to_text(&self.description),
+            self.field_to_text(&self.var_type),
+            self.field_to_text(&self.default),
+            self.field_to_text(&self.example),
+            self.field_to_text(&self.declared_by)
         )
     }
 }
@@ -203,6 +219,8 @@ impl<'dom> OptParser<'dom> {
 mod tests {
     use super::*;
 
+    // NOTE: This is a costly test, and is already covered by tests in crate::search and crate::app.
+    #[ignore]
     #[test]
     fn parse_caches_to_opts() {
         use crate::search::Source;
