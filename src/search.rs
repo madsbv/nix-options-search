@@ -1,3 +1,4 @@
+use color_eyre::eyre::Result;
 use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo, Utf32String};
@@ -5,7 +6,7 @@ use std::fmt;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
 
-use crate::opt_data::{parse_options, OptData};
+use crate::opt_data::{parse_options, OptText};
 
 flate!(static NIX_DARWIN_CACHED_HTML: str from "data/nix-darwin-index.html");
 flate!(static NIXOS_CACHED_HTML: str from "data/nixos-index.html");
@@ -23,7 +24,7 @@ pub enum InputStatus {
 pub struct Finder {
     source: Source,
     // TODO: Can we optimize memory usage by making this take Cows?
-    searcher: Nucleo<Vec<String>>,
+    searcher: Nucleo<OptText>,
     injection_handle: Option<JoinHandle<()>>,
     pub(crate) results_waiting: Receiver<()>,
 }
@@ -31,7 +32,7 @@ pub struct Finder {
 impl Finder {
     pub fn new(source: Source) -> Self {
         let (send, recv) = channel();
-        let (searcher, handle) = new_searcher(source, true, send, true);
+        let (searcher, handle) = new_searcher(source, true, send);
         Finder {
             source,
             searcher,
@@ -58,7 +59,7 @@ impl Finder {
         self.searcher.tick(10);
     }
 
-    pub fn get_results(&self, max: Option<usize>) -> Vec<Vec<String>> {
+    pub fn get_results(&self, max: Option<usize>) -> Vec<OptText> {
         let snap = self.searcher.snapshot();
         let n = snap.matched_item_count();
 
@@ -74,7 +75,7 @@ impl Finder {
         &mut self,
         pattern: &str,
         max: Option<usize>,
-    ) -> std::result::Result<Vec<Vec<String>>, Box<(dyn std::any::Any + Send + 'static)>> {
+    ) -> std::result::Result<Vec<OptText>, Box<(dyn std::any::Any + Send + 'static)>> {
         if let Some(handle) = std::mem::take(&mut self.injection_handle) {
             handle.join()?;
         }
@@ -117,6 +118,24 @@ impl Source {
             Self::HomeManagerNixDarwin => &HOME_MANAGER_NIX_DARWIN_CACHED_HTML,
         }
     }
+
+    pub(crate) fn opt_text_from_cache(self) -> Vec<OptText> {
+        let dom = tl::parse(self.cache(), tl::ParserOptions::default()).expect("cache should work");
+        parse_options(&dom)
+            .expect("cache should work")
+            .into_iter()
+            .map(std::convert::Into::into)
+            .collect()
+    }
+
+    pub(crate) fn opt_text_from_url(self) -> Result<Vec<OptText>> {
+        let res = ureq::get(self.url()).call()?;
+        let mut html = String::new();
+        res.into_reader().read_to_string(&mut html)?;
+        let dom = tl::parse(&html, tl::ParserOptions::default())?;
+
+        parse_options(&dom).map(|ok| ok.into_iter().map(std::convert::Into::into).collect())
+    }
 }
 
 impl fmt::Display for Source {
@@ -137,38 +156,18 @@ fn new_searcher(
     source: Source,
     try_http: bool,
     notify_ch: Sender<()>,
-    merge_columns: bool,
-) -> (Nucleo<Vec<String>>, JoinHandle<()>) {
+) -> (Nucleo<OptText>, JoinHandle<()>) {
     let opts = move || {
         if try_http {
-            if let Ok(res) = ureq::get(source.url()).call() {
-                let mut html = String::new();
-                if res.into_reader().read_to_string(&mut html).is_ok() {
-                    if let Ok(dom) = tl::parse(&html, tl::ParserOptions::default()) {
-                        if let Ok(opts) = parse_options(&dom) {
-                            return opts
-                                .into_iter()
-                                .map(|o| o.fields_as_strings())
-                                .collect::<Vec<Vec<String>>>();
-                        }
-                    }
-                }
-            }
+            source
+                .opt_text_from_url()
+                .unwrap_or(source.opt_text_from_cache())
+        } else {
+            source.opt_text_from_cache()
         }
-        let dom =
-            tl::parse(source.cache(), tl::ParserOptions::default()).expect("cache should work");
-        let opts = parse_options(&dom).expect("cache should work");
-        opts.into_iter().map(|o| o.fields_as_strings()).collect()
     };
 
-    // I think we have to hard-code this with concurrent injection
-    let columns = if merge_columns {
-        OptData::num_fields()
-    } else {
-        1
-    };
-
-    let mut nuc = Nucleo::<Vec<String>>::new(
+    let mut nuc = Nucleo::<OptText>::new(
         Config::DEFAULT,
         std::sync::Arc::new(move || {
             // NOTE: Can fail, but failure doesn't break the program as a whole.
@@ -176,31 +175,21 @@ fn new_searcher(
         }),
         // NOTE: There might be room for some optimization in thread allocation here, either by capping the number of threads for each Nucleo instance, or using the multi-column capabilities to merge the instances together.
         None,
-        u32::try_from(columns).expect("number of columns fits in a u32"),
+        1,
     );
     let inj = nuc.injector();
 
     let handle = std::thread::spawn(move || {
         let data = opts();
-        for mut d in data {
-            debug_assert_eq!(columns, d.len());
-
-            let d_strings_clone = d.clone();
+        for d in data {
+            // TODO: Add the right data to search string
+            let string_to_search = d.name.clone();
             let f = |fill: &mut [Utf32String]| {
-                if merge_columns {
-                    fill[0] = d.join("\n").into();
-                } else {
-                    (0..columns).rev().for_each(|i| {
-                        fill[i] = d
-                            .pop()
-                            .expect("all d_strings have the same number of fields")
-                            .into();
-                    });
-                }
+                fill[0] = string_to_search.into();
             };
             // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
             // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
-            inj.push(d_strings_clone, f);
+            inj.push(d, f);
         }
     });
     nuc.tick(0);
@@ -232,7 +221,7 @@ mod tests {
 
     fn parse_source_from_cache(source: Source) {
         let (send, _) = channel();
-        let (mut searcher, handle) = new_searcher(source, false, send, true);
+        let (mut searcher, handle) = new_searcher(source, false, send);
         handle
             .join()
             .expect("parsing cached data should be infallible");

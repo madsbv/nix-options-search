@@ -1,4 +1,6 @@
 use color_eyre::eyre::{ensure, Result};
+use html2text::from_read_with_decorator;
+use html2text::render::text_renderer::TrivialDecorator;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
 
 /// Structure of data/index.html (nix-darwin): Each option header is in a `<dt>`, associated description, type, default, example and link to docs is in a `<dd>`.
@@ -35,63 +37,122 @@ pub struct OptData<'a> {
     p: &'a Parser<'a>,
 }
 
-use nanohtml2text::html2text;
+// use nanohtml2text::html2text;
 impl OptData<'_> {
-    // NOTE: All conversion of HTMLTags to String goes through this function.
-    fn field_to_string(&self, section: &[HTMLTag]) -> String {
+    // NOTE: All conversion of HTMLTags to plaintext goes through this function.
+    fn field_to_raw_html(&self, section: &[HTMLTag]) -> String {
         section
             .iter()
-            .map(|t| html2text(&t.outer_html(self.p)))
+            .map(|t| t.outer_html(self.p))
             .fold(String::new(), |acc, e| acc + "\n" + &e)
             .trim()
             .to_string()
     }
+}
 
-    /// Give a purely text-based representation of `self`, stripping out HTML-specific tags like links.
-    pub fn fields_as_strings(&self) -> Vec<String> {
-        vec![
-            // Clean up any " (index.html#...)" links
-            self.field_to_string(&self.name)
-                .split(" (index")
-                .next()
-                .unwrap_or("")
-                .to_string(),
-            self.field_to_string(&self.description),
-            self.field_to_string(&self.var_type)
-                .trim_start_matches("Type:")
-                .trim()
-                .to_string(),
-            self.field_to_string(&self.default)
-                .trim_start_matches("Default:")
-                .trim()
-                .to_string(),
-            self.field_to_string(&self.example)
-                .trim_start_matches("Example:")
-                .trim()
-                .to_string(),
-            self.field_to_string(&self.declared_by)
-                .trim_start_matches("Declared by:")
-                .trim()
-                .to_string(),
-        ]
+#[derive(Clone, Debug)]
+pub struct OptRawHTML {
+    pub name: String,
+    pub description: String,
+    pub var_type: String,
+    pub default: String,
+    pub example: String,
+    pub declared_by: String,
+}
+
+impl From<OptData<'_>> for OptRawHTML {
+    fn from(value: OptData<'_>) -> Self {
+        Self {
+            name: value.field_to_raw_html(&value.name),
+            description: value.field_to_raw_html(&value.description),
+            var_type: value.field_to_raw_html(&value.var_type),
+            default: value.field_to_raw_html(&value.default),
+            example: value.field_to_raw_html(&value.example),
+            declared_by: value.field_to_raw_html(&value.declared_by),
+        }
     }
+}
 
-    pub fn num_fields() -> usize {
-        6
+#[derive(Clone, Debug)]
+pub struct OptText {
+    pub name: String,
+    pub description: String,
+    pub var_type: String,
+    pub default: String,
+    pub example: String,
+    pub declared_by: String,
+}
+
+impl OptText {
+    pub const NUM_FIELDS: usize = 6;
+}
+
+impl From<OptData<'_>> for OptText {
+    fn from(value: OptData<'_>) -> Self {
+        let html: OptRawHTML = value.into();
+        let dec = TrivialDecorator::new();
+        let name = from_read_with_decorator(html.name.as_bytes(), 1000, dec.clone());
+        let description = from_read_with_decorator(html.description.as_bytes(), 1000, dec.clone());
+        let var_type = from_read_with_decorator(html.var_type.as_bytes(), 1000, dec.clone())
+            .trim_start_matches("Type:")
+            .trim()
+            .to_string();
+        let default = from_read_with_decorator(html.default.as_bytes(), 1000, dec.clone())
+            .trim_start_matches("Default:")
+            .trim()
+            .to_string();
+        let example = from_read_with_decorator(html.example.as_bytes(), 1000, dec.clone())
+            .trim_start_matches("Example:")
+            .trim()
+            .to_string();
+        let declared_by = from_read_with_decorator(html.declared_by.as_bytes(), 1000, dec.clone())
+            .trim_start_matches("Declared By:")
+            .trim()
+            .to_string();
+        Self {
+            name,
+            description,
+            var_type,
+            default,
+            example,
+            declared_by,
+        }
     }
 }
 
 impl std::fmt::Display for OptData<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let html: OptRawHTML = self.clone().into();
+        write!(f, "{html}")
+    }
+}
+
+impl std::fmt::Display for OptText {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}\n--------------",
-            self.field_to_string(&self.name),
-            self.field_to_string(&self.description),
-            self.field_to_string(&self.var_type),
-            self.field_to_string(&self.default),
-            self.field_to_string(&self.example),
-            self.field_to_string(&self.declared_by)
+            self.name,
+            self.description,
+            self.var_type,
+            self.default,
+            self.example,
+            self.declared_by,
+        )
+    }
+}
+
+impl std::fmt::Display for OptRawHTML {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}\n--------------",
+            self.name,
+            self.description,
+            self.var_type,
+            self.default,
+            self.example,
+            self.declared_by,
         )
     }
 }
@@ -203,6 +264,8 @@ impl<'dom> OptParser<'dom> {
 mod tests {
     use super::*;
 
+    // NOTE: This is a costly test, and is already covered by tests in crate::search and crate::app.
+    #[ignore]
     #[test]
     fn parse_caches_to_opts() {
         use crate::search::Source;

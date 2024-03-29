@@ -1,14 +1,6 @@
+use crate::opt_data::OptText;
 use ratatui::{prelude::*, widgets::Paragraph};
 use textwrap::{wrap, Options};
-
-#[derive(Clone, Debug)]
-pub struct OptDisplay {
-    name: String,
-    description: String,
-    var_type: String,
-    default: String,
-    example: String,
-}
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -22,7 +14,7 @@ pub struct OptDisplay {
 // TODO: Redo layout. Stack name, type and default on top of each other on the left, and either description and example on top of each other to the right of that, or next to each other in two columns. 'Description' is currently pretty hard to separate from the other pieces.
 // TODO: Bold-font the name?
 // TODO: Consider using tui-widgets-list: https://github.com/preiter93/tui-widget-list/blob/main/examples/demo.gif
-impl Widget for &OptDisplay {
+impl Widget for &OptText {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -72,49 +64,38 @@ fn wrapped_paragraph_with_title<'a>(
     area: Rect,
 ) -> Paragraph<'a> {
     let title_span = Span::styled(title, title_style);
+    // Necessary check to avoid `Vec::remove` panicking later.
     if content.is_empty() {
         return Paragraph::new(title_span);
     }
 
-    let height = area.height as usize;
-
-    if height == 1 {
+    // Skip text wrapping calculations if there's only one line of space.
+    if area.height == 1 {
         return Paragraph::new(Line::from(vec![title_span, content.into()]));
     }
 
-    let width = area.width as usize;
+    let options = Options::new(area.width as usize).initial_indent(title);
 
-    let options = Options::new(width).initial_indent(title);
     let mut wrapped = wrap(content, options)
         .into_iter()
         .map(std::borrow::Cow::into_owned)
         .collect::<Vec<_>>();
+
     wrapped[0] = wrapped[0]
         .strip_prefix(title)
         .expect("wrapping with initial_indent `title` prefixes `wrapped[0]` with `title`")
         .into();
+
     let mut lines = vec![];
+
     lines.push(Line::from(vec![title_span, wrapped.remove(0).into()]));
-    for w in wrapped.into_iter().skip(1).take(height - 1) {
+
+    for w in wrapped.into_iter().skip(1).take(area.height as usize - 1) {
         lines.push(Line::from(w));
     }
     Paragraph::new(Text::from(lines))
 }
 
-impl OptDisplay {
-    /// Create an `OptDisplay` from a vector of Strings, assumed to be in the order `name, description, var_type, default, example`. Defaults to empty strings for any missing entries.
-    pub fn from_vec(mut opt: Vec<String>) -> Self {
-        let mut opt = opt.drain(..);
-        Self {
-            name: opt.next().unwrap_or_default(),
-            description: opt.next().unwrap_or_default(),
-            var_type: opt.next().unwrap_or_default(),
-            default: opt.next().unwrap_or_default(),
-            example: opt.next().unwrap_or_default(),
-        }
-    }
-
-    pub fn height() -> usize {
-        3
-    }
+impl OptText {
+    pub const HEIGHT: usize = 3;
 }
