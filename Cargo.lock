@@ -524,12 +524,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nanohtml2text"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "999681fe3c0524336e98ece1c25ee4278607f25cc1e361ad0f9201c8bf56dc2c"
-
-[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -543,7 +537,6 @@ dependencies = [
  "crossterm",
  "html2text",
  "include-flate",
- "nanohtml2text",
  "nucleo",
  "ratatui",
  "textwrap",

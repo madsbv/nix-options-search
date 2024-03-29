@@ -64,30 +64,33 @@ fn wrapped_paragraph_with_title<'a>(
     area: Rect,
 ) -> Paragraph<'a> {
     let title_span = Span::styled(title, title_style);
+    // Necessary check to avoid `Vec::remove` panicking later.
     if content.is_empty() {
         return Paragraph::new(title_span);
     }
 
-    let height = area.height as usize;
-
-    if height == 1 {
+    // Skip text wrapping calculations if there's only one line of space.
+    if area.height == 1 {
         return Paragraph::new(Line::from(vec![title_span, content.into()]));
     }
 
-    let width = area.width as usize;
+    let options = Options::new(area.width as usize).initial_indent(title);
 
-    let options = Options::new(width).initial_indent(title);
     let mut wrapped = wrap(content, options)
         .into_iter()
         .map(std::borrow::Cow::into_owned)
         .collect::<Vec<_>>();
+
     wrapped[0] = wrapped[0]
         .strip_prefix(title)
         .expect("wrapping with initial_indent `title` prefixes `wrapped[0]` with `title`")
         .into();
+
     let mut lines = vec![];
+
     lines.push(Line::from(vec![title_span, wrapped.remove(0).into()]));
-    for w in wrapped.into_iter().skip(1).take(height - 1) {
+
+    for w in wrapped.into_iter().skip(1).take(area.height as usize - 1) {
         lines.push(Line::from(w));
     }
     Paragraph::new(Text::from(lines))
