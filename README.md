@@ -5,6 +5,7 @@
 [![CI](https://github.com/madsbv/nix-options-search/workflows/CI/badge.svg)](https://github.com/madsbv/nix-options-search/actions)
 
 A simple command-line tool to look up options for configuring nix-darwin, nixOS, and home-manager quickly, with fuzzy finding.
+<img width="1752" alt="TUI" src="https://github.com/madsbv/nix-options-search/assets/2766060/615ea8ed-8f70-41d3-abb9-9d8132c5757d">
 
 ## Installation
 
