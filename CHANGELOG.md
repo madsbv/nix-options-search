@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2024-03-29
+- Changed binary name to `nox`.
+- Updated documentation.
+- Fixed vanishing text bug.
+- Fixed bug causing some text to appear entirely in lowercase.
+
 ## [0.1.0] - 2024-03-08
 Initial release.
 
