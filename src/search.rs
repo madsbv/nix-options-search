@@ -1,7 +1,7 @@
 use color_eyre::eyre::Result;
 use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
-use nucleo::{Config, Nucleo, Utf32String};
+use nucleo::{Config, Nucleo};
 use std::fmt;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
@@ -183,13 +183,9 @@ fn new_searcher(
         let data = opts();
         for d in data {
             // TODO: Add the right data to search string
-            let string_to_search = d.name.clone();
-            let f = |fill: &mut [Utf32String]| {
-                fill[0] = string_to_search.into();
-            };
             // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
             // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
-            inj.push(d, f);
+            inj.push(d, |data, col| col[0] = data.name.clone().into());
         }
     });
     nuc.tick(0);
