@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2024-04-18
+- Update dependencies and cached html files
+
 ## [0.2.0] - 2024-03-29
 - Changed binary name to `nox`.
 - Updated documentation.
