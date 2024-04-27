@@ -70,6 +70,13 @@ fn wrapped_paragraph_with_title<'a>(
 
     // Skip text wrapping calculations if there's only one line of space.
     if area.height == 1 {
+        debug!(
+            name = "Text wrap early exit",
+            text_type = title,
+            content = content,
+            width = area.width,
+            height = area.height
+        );
         return Paragraph::new(Line::from(vec![title_span, content.into()]));
     }
 
@@ -84,17 +91,58 @@ fn wrapped_paragraph_with_title<'a>(
         .strip_prefix(title)
         .expect("wrapping with initial_indent `title` prefixes `wrapped[0]` with `title`")
         .into();
+    debug!(
+        name = "Text wrap",
+        text_type = title,
+        content = content,
+        wrapped_text = ?wrapped,
+        width = area.width,
+        height = area.height
+    );
 
     let mut lines = vec![];
 
-    lines.push(Line::from(vec![title_span, wrapped.remove(0).into()]));
+    lines.push(Line::from(vec![
+        title_span,
+        std::mem::take(&mut wrapped[0]).into(),
+    ]));
+    debug!(name = "Text wrap after removing first entry",
+           text_type = title,
+           content = content,
+           wrapped = ?wrapped,
+           width = area.width,
+           height = area.height
+    );
 
     for w in wrapped.into_iter().skip(1).take(area.height as usize - 1) {
         lines.push(Line::from(w));
     }
+    debug!(name = "Text wrap lines",
+           text_type = title,
+           content = content,
+           lines = ?lines,
+           width = area.width,
+           height = area.height
+    );
     Paragraph::new(Text::from(lines))
 }
 
 impl OptText {
     pub const HEIGHT: usize = 3;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_wrapping() {
+        let title = "Test: ";
+        let content = "This is a string of length 74. The text to be wrapped has total length 80.";
+        let style = Style::new();
+        let area = Rect::new(0, 0, 40, 2);
+        let wrapped = wrapped_paragraph_with_title(content, title, style, area);
+
+        wrapped
+    }
 }
