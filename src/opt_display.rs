@@ -1,3 +1,5 @@
+use std::borrow::{BorrowMut, Cow};
+
 use crate::opt_data::OptText;
 use ratatui::{prelude::*, widgets::Paragraph};
 use textwrap::{wrap, Options};
@@ -55,6 +57,21 @@ impl Widget for &OptText {
     }
 }
 
+fn wrap_text<'a>(content: &'a str, title: &'a str, width: usize) -> Vec<Cow<'a, str>> {
+    let options = Options::new(width).initial_indent(title);
+
+    let mut wrapped = wrap(content, options);
+
+    wrapped[0] = Cow::Owned(
+        wrapped[0]
+            .borrow_mut()
+            .strip_prefix(title)
+            .expect("wrapping with initial_indent `title` prefixes `wrapped[0]` with `title`")
+            .into(),
+    );
+    wrapped
+}
+
 // Factor out text wrapping logic from Ratatui element construction
 fn wrapped_paragraph_with_title<'a>(
     content: &'a str,
@@ -63,67 +80,23 @@ fn wrapped_paragraph_with_title<'a>(
     area: Rect,
 ) -> Paragraph<'a> {
     let title_span = Span::styled(title, title_style);
-    // Necessary check to avoid `Vec::remove` panicking later.
-    if content.is_empty() {
-        return Paragraph::new(title_span);
+
+    if area.height <= 1 {
+        // Avoid running text wrapping algorithm if not needed.
+        return Paragraph::new(Line::from(vec![title_span, content.to_string().into()]));
     }
 
-    // Skip text wrapping calculations if there's only one line of space.
-    if area.height == 1 {
-        debug!(
-            name = "Text wrap early exit",
-            text_type = title,
-            content = content,
-            width = area.width,
-            height = area.height
-        );
-        return Paragraph::new(Line::from(vec![title_span, content.into()]));
-    }
-
-    let options = Options::new(area.width as usize).initial_indent(title);
-
-    let mut wrapped = wrap(content, options)
-        .into_iter()
-        .map(std::borrow::Cow::into_owned)
-        .collect::<Vec<_>>();
-
-    wrapped[0] = wrapped[0]
-        .strip_prefix(title)
-        .expect("wrapping with initial_indent `title` prefixes `wrapped[0]` with `title`")
-        .into();
-    debug!(
-        name = "Text wrap",
-        text_type = title,
-        content = content,
-        wrapped_text = ?wrapped,
-        width = area.width,
-        height = area.height
-    );
-
+    let mut wrapped = wrap_text(content, title, area.width as usize);
     let mut lines = vec![];
 
     lines.push(Line::from(vec![
         title_span,
         std::mem::take(&mut wrapped[0]).into(),
     ]));
-    debug!(name = "Text wrap after removing first entry",
-           text_type = title,
-           content = content,
-           wrapped = ?wrapped,
-           width = area.width,
-           height = area.height
-    );
 
     for w in wrapped.into_iter().skip(1).take(area.height as usize - 1) {
-        lines.push(Line::from(w));
+        lines.push(Line::from(w.to_string()));
     }
-    debug!(name = "Text wrap lines",
-           text_type = title,
-           content = content,
-           lines = ?lines,
-           width = area.width,
-           height = area.height
-    );
     Paragraph::new(Text::from(lines))
 }
 
@@ -133,16 +106,20 @@ impl OptText {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Borrow;
+
     use super::*;
 
     #[test]
     fn test_wrapping() {
         let title = "Test: ";
         let content = "This is a string of length 74. The text to be wrapped has total length 80.";
-        let style = Style::new();
-        let area = Rect::new(0, 0, 40, 2);
-        let wrapped = wrapped_paragraph_with_title(content, title, style, area);
+        let wrapped = wrap_text(content, title, 40);
 
-        wrapped
+        assert_eq!(wrapped[0].as_ref(), "This is a string of length 74. The");
+        assert_eq!(
+            wrapped[1].as_ref(),
+            "text to be wrapped has total length 80."
+        );
     }
 }
