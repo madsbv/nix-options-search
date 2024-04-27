@@ -3,6 +3,7 @@ use ratatui::{
     prelude::*,
     widgets::{Paragraph, Wrap},
 };
+use tui_widget_list::{ListableWidget, ScrollAxis};
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -20,7 +21,12 @@ impl Widget for &OptText {
     {
         let outer = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Length(2)])
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Percentage(100),
+                // Padding between list elements
+                Constraint::Length(1),
+            ])
             .split(area);
 
         let inner_top = Layout::default()
@@ -62,4 +68,54 @@ fn wrapped_paragraph_with_title<'a>(
 
 impl OptText {
     pub const HEIGHT: usize = 3;
+}
+
+pub struct ListableOptWidget {
+    content: OptText,
+    height: usize,
+}
+
+impl ListableOptWidget {
+    pub const HEIGHT: usize = 4;
+    pub const HIGHLIGHTED_HEIGHT: usize = 7;
+}
+
+impl From<OptText> for ListableOptWidget {
+    fn from(value: OptText) -> Self {
+        ListableOptWidget {
+            content: value,
+            height: ListableOptWidget::HEIGHT,
+        }
+    }
+}
+
+impl From<ListableOptWidget> for OptText {
+    fn from(value: ListableOptWidget) -> Self {
+        value.content
+    }
+}
+
+impl Widget for ListableOptWidget {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        OptText::from(self).render(area, buf);
+    }
+}
+
+impl ListableWidget for ListableOptWidget {
+    fn highlight(self) -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            height: ListableOptWidget::HIGHLIGHTED_HEIGHT,
+            ..self
+        }
+    }
+
+    fn size(&self, _: &ScrollAxis) -> usize {
+        self.height
+    }
 }

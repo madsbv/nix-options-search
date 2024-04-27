@@ -1,7 +1,9 @@
 use crate::opt_data::OptText;
+use crate::opt_display::ListableOptWidget;
 use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use ratatui::widgets::Padding;
 use ratatui::{
     prelude::*,
     symbols::border,
@@ -12,6 +14,7 @@ use ratatui::{
 };
 use std::io;
 use std::time::Duration;
+use tui_widget_list::{List, ListState};
 
 // XXX: Optimization idea: Have a "results cache stack" where, each time search_string is appended to, we push the current search results; and when Backspace is pressed, instead of re-searching we just pop the stack. On tab change, we have to clear the stack. Might not be worth it.
 pub struct App {
@@ -185,31 +188,21 @@ impl Widget for &App {
                     .position(Position::Bottom),
             )
             .borders(Borders::ALL)
-            .border_set(border::THICK);
+            .border_set(border::THICK)
+            .padding(Padding::horizontal(1));
 
-        let results_outer_area = chunks[1];
-        let results_inner_area = results_block.inner(results_outer_area);
+        let results_area = chunks[1];
 
-        // Since `Layout` doesn't have a `block` method, we render it manually
-        results_block.render(results_outer_area, buf);
-
-        // Add 1 space of padding
-        let vert_space_per_opt_display = OptText::HEIGHT + 1;
-        let n_opts = results_inner_area.height as usize / vert_space_per_opt_display;
-
-        let results = self.get_results(Some(n_opts));
-
-        // TODO: Do something with the spacers?
-        #[allow(clippy::cast_possible_truncation)]
-        let (results_layout, _) = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(results.iter().map(|_| vert_space_per_opt_display as u16))
-            .margin(1)
-            .split_with_spacers(results_inner_area); // Constraint implements from<u16>
-
-        for (&rect, opt) in std::iter::zip(results_layout.iter(), results) {
-            opt.render(rect, buf);
-        }
+        let results_list = List::new(
+            self.get_results(None)
+                .into_iter()
+                .map(ListableOptWidget::from)
+                .collect(),
+        )
+        .block(results_block);
+        // I probably have to keep this around somewhere.
+        let mut state = ListState::default();
+        results_list.render(results_area, buf, &mut state);
 
         let search_block = Block::default()
             .borders(Borders::ALL)
