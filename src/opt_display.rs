@@ -3,7 +3,6 @@ use std::borrow::{BorrowMut, Cow};
 use crate::opt_data::OptText;
 use ratatui::{prelude::*, widgets::Paragraph};
 use textwrap::{wrap, Options};
-use tracing::debug;
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -57,22 +56,6 @@ impl Widget for &OptText {
     }
 }
 
-fn wrap_text<'a>(content: &'a str, title: &'a str, width: usize) -> Vec<Cow<'a, str>> {
-    let options = Options::new(width).initial_indent(title);
-
-    let mut wrapped = wrap(content, options);
-
-    wrapped[0] = Cow::Owned(
-        wrapped[0]
-            .borrow_mut()
-            .strip_prefix(title)
-            .expect("wrapping with initial_indent `title` prefixes `wrapped[0]` with `title`")
-            .into(),
-    );
-    wrapped
-}
-
-// Factor out text wrapping logic from Ratatui element construction
 fn wrapped_paragraph_with_title<'a>(
     content: &'a str,
     title: &'a str,
@@ -100,13 +83,28 @@ fn wrapped_paragraph_with_title<'a>(
     Paragraph::new(Text::from(lines))
 }
 
+fn wrap_text<'a>(content: &'a str, title: &'a str, width: usize) -> Vec<Cow<'a, str>> {
+    let options = Options::new(width).initial_indent(title);
+
+    let mut wrapped = wrap(content, options);
+
+    wrapped[0] = Cow::Owned(
+        wrapped[0]
+            .borrow_mut()
+            .strip_prefix(title)
+            .expect("wrapping with initial_indent `title` prefixes `wrapped[0]` with `title`")
+            .into(),
+    );
+    wrapped
+}
+
 impl OptText {
     pub const HEIGHT: usize = 3;
 }
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
+    
 
     use super::*;
 
