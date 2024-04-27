@@ -4,9 +4,11 @@
 #![allow(clippy::similar_names)]
 
 use color_eyre::eyre::Result;
+use tracing::debug;
 
 mod app;
 use app::App;
+mod logging;
 mod opt_data;
 mod opt_display;
 mod search;
@@ -24,6 +26,8 @@ fn main() {
 
 fn init_and_run() -> Result<()> {
     color_eyre::install()?;
+    logging::initialize()?;
+    debug!("Application started");
     let mut terminal = tui::init()?;
 
     App::new().run(&mut terminal)?;

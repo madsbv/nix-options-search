@@ -1,6 +1,7 @@
 use crate::opt_data::OptText;
 use ratatui::{prelude::*, widgets::Paragraph};
 use textwrap::{wrap, Options};
+use tracing::debug;
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -11,9 +12,6 @@ use textwrap::{wrap, Options};
 /// ######################################################
 ///
 /// This widget only handles text layout and has no border built in.
-// TODO: Redo layout. Stack name, type and default on top of each other on the left, and either description and example on top of each other to the right of that, or next to each other in two columns. 'Description' is currently pretty hard to separate from the other pieces.
-// TODO: Bold-font the name?
-// TODO: Consider using tui-widgets-list: https://github.com/preiter93/tui-widget-list/blob/main/examples/demo.gif
 impl Widget for &OptText {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
@@ -57,6 +55,7 @@ impl Widget for &OptText {
     }
 }
 
+// Factor out text wrapping logic from Ratatui element construction
 fn wrapped_paragraph_with_title<'a>(
     content: &'a str,
     title: &'a str,
