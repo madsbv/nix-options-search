@@ -135,21 +135,8 @@ impl App {
     }
 }
 
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer)
-    where
-        Self: Sized,
-        // TODO: Consider splitting out the rendering of each section in individual functions/widgets, or just organize code better
-    {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Min(1),
-                Constraint::Length(3),
-            ])
-            .split(area);
-
+impl App {
+    fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
         // TODO: Styling
         let width_of_tabs_widget: usize =
             self.pages.iter().map(|p| p.name().len()).sum::<usize>() + self.pages.len() * 3 + 1;
@@ -161,7 +148,7 @@ impl Widget for &App {
                 Constraint::Length(width_of_tabs_widget as u16),
                 Constraint::Min(0),
             ])
-            .split(chunks[0]);
+            .split(area);
         let tabs = Tabs::new(self.pages.iter().map(Finder::name).collect::<Vec<_>>())
             .block(Block::default().title("Tabs").borders(Borders::ALL))
             .style(Style::default().white())
@@ -171,7 +158,9 @@ impl Widget for &App {
             .padding(" ", " ");
 
         tabs.render(tabs_layout[1], buf);
+    }
 
+    fn render_results(&self, area: Rect, buf: &mut Buffer) {
         let title = Title::from(format!(" {} ", self.pages[self.active_page].name()).bold());
         let instructions = Title::from(Line::from(vec![
             " Change tabs: ".into(),
@@ -191,8 +180,6 @@ impl Widget for &App {
             .border_set(border::THICK)
             .padding(Padding::horizontal(1));
 
-        let results_area = chunks[1];
-
         let results_list = List::new(
             self.get_results(None)
                 .into_iter()
@@ -202,8 +189,10 @@ impl Widget for &App {
         .block(results_block);
         // I probably have to keep this around somewhere.
         let mut state = ListState::default();
-        results_list.render(results_area, buf, &mut state);
+        results_list.render(area, buf, &mut state);
+    }
 
+    fn render_search_field(&self, area: Rect, buf: &mut Buffer) {
         let search_block = Block::default()
             .borders(Borders::ALL)
             .border_set(border::THICK);
@@ -211,9 +200,30 @@ impl Widget for &App {
         let search_par = Paragraph::new(Text::from(self.search_string.clone().red()))
             .centered()
             .block(search_block);
-        search_par.render(chunks[2], buf);
+        search_par.render(area, buf);
     }
 }
+
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Min(1),
+                Constraint::Length(3),
+            ])
+            .split(area);
+
+        self.render_tabs(chunks[0], buf);
+        self.render_results(chunks[1], buf);
+        self.render_search_field(chunks[2], buf);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
