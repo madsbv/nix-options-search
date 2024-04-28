@@ -3,6 +3,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Paragraph, Wrap},
 };
+use tracing::debug;
 use tui_widget_list::{ListableWidget, ScrollAxis};
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
@@ -28,20 +29,18 @@ fn wrapped_paragraph_with_title<'a>(
 pub struct ListableOptWidget {
     content: OptText,
     height: usize,
+    width: usize,
     style: Style,
 }
 
-// TODO: It might be worth making the height of highlighted items dynamic depending on the amount of text
 impl ListableOptWidget {
     const DEFAULT_HEIGHT: usize = 4;
-    const HIGHLIGHTED_HEIGHT: usize = 7;
-}
 
-impl From<OptText> for ListableOptWidget {
-    fn from(value: OptText) -> Self {
+    pub fn new(value: OptText, width: usize) -> Self {
         ListableOptWidget {
             content: value,
             height: ListableOptWidget::DEFAULT_HEIGHT,
+            width,
             style: Style::default(),
         }
     }
@@ -84,9 +83,6 @@ impl Widget for ListableOptWidget {
 
         let title_style = Style::new().blue();
 
-        // TODO: Compute the estimated max height of this widget given text wrapping.
-        // We'll have to do this manually with string lengths and such
-
         let name = wrapped_paragraph_with_title(&self.content.name, "Name: ", title_style);
         let var_type = wrapped_paragraph_with_title(&self.content.var_type, "Type: ", title_style);
         let default = wrapped_paragraph_with_title(&self.content.default, "Default: ", title_style);
@@ -102,15 +98,31 @@ impl Widget for ListableOptWidget {
     }
 }
 
-// TODO: Dynamic expanded height computation.
-// I think we need to move the rendering logic from OptText to ListableOptWidget, and store the desired height of a fully expanded item as state on the widget after doing the text wrapping. Then we need to reference that here.
 impl ListableWidget for ListableOptWidget {
     fn highlight(self) -> Self
     where
         Self: Sized,
     {
+        // Description and example fields are laid out next to each other at a 2:1 ratio.
+        let description_height = (self.content.description.len() * 3) / (self.width * 2);
+        let example_height = (self.content.example.len() * 3) / self.width;
+
+        // Integer division truncates decimals
+        let height =
+            (description_height.max(example_height) + 3).max(ListableOptWidget::DEFAULT_HEIGHT);
+
+        debug!(
+            name: "Compute highlighted item",
+            description = self.content.description,
+            example = self.content.example,
+            width = self.width,
+            description_height = description_height,
+            example_height = example_height,
+            height = height,
+        );
+
         Self {
-            height: ListableOptWidget::HIGHLIGHTED_HEIGHT,
+            height,
             style: Style::default().bg(Color::DarkGray),
             ..self
         }
