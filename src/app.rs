@@ -24,6 +24,7 @@ pub struct App {
     active_page: usize,
     // To use Nucleo's append optimization and avoid reparsing if pattern hasn't changed
     input_status: InputStatus,
+    result_list_state: ListState,
     exit: bool,
 }
 
@@ -40,6 +41,7 @@ impl App {
             ],
             active_page: 0,
             input_status: InputStatus::Change,
+            result_list_state: ListState::default(),
             exit: false,
         }
     }
@@ -81,7 +83,7 @@ impl App {
         Ok(())
     }
 
-    fn render_frame(&self, frame: &mut Frame) {
+    fn render_frame(&mut self, frame: &mut Frame) {
         frame.render_widget(self, frame.size());
     }
 
@@ -108,25 +110,37 @@ impl App {
 
     fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
+            // TODO: How should the highlighted item update as we move across tabs?
+            // More importantly, how about changing the search terms?
             KeyCode::Char(c) => {
                 self.search_string.push(c);
                 self.input_status = InputStatus::Append;
+                self.result_list_state.select(Some(0));
             }
             KeyCode::Backspace => {
                 self.search_string.pop();
                 self.input_status = InputStatus::Change;
+                // self.result_list_state.select(Some(0));
             }
             KeyCode::Right => {
                 if self.active_page + 1 < self.pages.len() {
                     self.active_page += 1;
                     self.input_status = InputStatus::Change;
+                    self.result_list_state.select(None);
                 }
             }
             KeyCode::Left => {
                 if self.active_page > 0 {
                     self.active_page -= 1;
                     self.input_status = InputStatus::Change;
+                    self.result_list_state.select(None);
                 }
+            }
+            KeyCode::Down => {
+                self.result_list_state.next();
+            }
+            KeyCode::Up => {
+                self.result_list_state.previous();
             }
             KeyCode::Esc => self.exit = true,
             _ => {}
@@ -160,7 +174,7 @@ impl App {
         tabs.render(tabs_layout[1], buf);
     }
 
-    fn render_results(&self, area: Rect, buf: &mut Buffer) {
+    fn render_results(&mut self, area: Rect, buf: &mut Buffer) {
         let title = Title::from(format!(" {} ", self.pages[self.active_page].name()).bold());
         let instructions = Title::from(Line::from(vec![
             " Change tabs: ".into(),
@@ -187,9 +201,7 @@ impl App {
                 .collect(),
         )
         .block(results_block);
-        // I probably have to keep this around somewhere.
-        let mut state = ListState::default();
-        results_list.render(area, buf, &mut state);
+        results_list.render(area, buf, &mut self.result_list_state);
     }
 
     fn render_search_field(&self, area: Rect, buf: &mut Buffer) {
@@ -204,7 +216,7 @@ impl App {
     }
 }
 
-impl Widget for &App {
+impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,

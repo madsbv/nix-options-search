@@ -1,7 +1,7 @@
 use crate::opt_data::OptText;
 use ratatui::{
     prelude::*,
-    widgets::{Paragraph, Wrap},
+    widgets::{Block, Paragraph, Wrap},
 };
 use tui_widget_list::{ListableWidget, ScrollAxis};
 
@@ -66,15 +66,14 @@ fn wrapped_paragraph_with_title<'a>(
         .wrap(Wrap { trim: true });
 }
 
-impl OptText {
-    pub const HEIGHT: usize = 3;
-}
-
+// TODO: Add some styling information for highlighted items
 pub struct ListableOptWidget {
     content: OptText,
     height: usize,
+    style: Style,
 }
 
+// TODO: It might be worth making the height of highlighted items dynamic depending on the amount of text
 impl ListableOptWidget {
     pub const HEIGHT: usize = 4;
     pub const HIGHLIGHTED_HEIGHT: usize = 7;
@@ -85,6 +84,7 @@ impl From<OptText> for ListableOptWidget {
         ListableOptWidget {
             content: value,
             height: ListableOptWidget::HEIGHT,
+            style: Style::default(),
         }
     }
 }
@@ -100,7 +100,10 @@ impl Widget for ListableOptWidget {
     where
         Self: Sized,
     {
-        OptText::from(self).render(area, buf);
+        let block = Block::default().style(self.style);
+        let inner = block.inner(area);
+        block.render(area, buf);
+        OptText::from(self).render(inner, buf);
     }
 }
 
@@ -111,6 +114,7 @@ impl ListableWidget for ListableOptWidget {
     {
         Self {
             height: ListableOptWidget::HIGHLIGHTED_HEIGHT,
+            style: Style::default().bg(Color::DarkGray),
             ..self
         }
     }

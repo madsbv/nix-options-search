@@ -37,7 +37,6 @@ pub struct OptData<'a> {
     p: &'a Parser<'a>,
 }
 
-// use nanohtml2text::html2text;
 impl OptData<'_> {
     // NOTE: All conversion of HTMLTags to plaintext goes through this function.
     fn field_to_raw_html(&self, section: &[HTMLTag]) -> String {
@@ -83,13 +82,8 @@ pub struct OptText {
     pub declared_by: String,
 }
 
-impl OptText {
-    pub const NUM_FIELDS: usize = 6;
-}
-
-impl From<OptData<'_>> for OptText {
-    fn from(value: OptData<'_>) -> Self {
-        let html: OptRawHTML = value.into();
+impl From<OptRawHTML> for OptText {
+    fn from(html: OptRawHTML) -> Self {
         let dec = TrivialDecorator::new();
         let name = from_read_with_decorator(html.name.as_bytes(), 1000, dec.clone());
         let description = from_read_with_decorator(html.description.as_bytes(), 1000, dec.clone());
@@ -117,6 +111,13 @@ impl From<OptData<'_>> for OptText {
             example,
             declared_by,
         }
+    }
+}
+
+impl From<OptData<'_>> for OptText {
+    fn from(value: OptData<'_>) -> Self {
+        let html: OptRawHTML = value.into();
+        html.into()
     }
 }
 
