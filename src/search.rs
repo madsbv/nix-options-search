@@ -3,7 +3,8 @@ use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use std::fmt;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use crate::opt_data::{parse_options, OptText};
@@ -26,18 +27,22 @@ pub struct Finder {
     // TODO: Can we optimize memory usage by making this take Cows?
     searcher: Nucleo<OptText>,
     injection_handle: Option<JoinHandle<()>>,
-    pub(crate) results_waiting: Receiver<()>,
+    pub(crate) results_waiting: Arc<AtomicBool>,
 }
 
 impl Finder {
     pub fn new(source: Source) -> Self {
-        let (send, recv) = channel();
-        let (searcher, handle) = new_searcher(source, true, send);
+        let results_waiting = Arc::new(AtomicBool::new(false));
+        let results_sender = Arc::clone(&results_waiting);
+        let notify = Arc::new(move || {
+            results_sender.store(true, Ordering::Relaxed);
+        });
+        let (searcher, handle) = new_searcher(source, true, notify);
         Finder {
             source,
             searcher,
             injection_handle: Some(handle),
-            results_waiting: recv,
+            results_waiting,
         }
     }
 
@@ -155,7 +160,7 @@ impl fmt::Display for Source {
 fn new_searcher(
     source: Source,
     try_http: bool,
-    notify_ch: Sender<()>,
+    notify: Arc<dyn Fn() + Sync + Send>,
 ) -> (Nucleo<OptText>, JoinHandle<()>) {
     let opts = move || {
         if try_http {
@@ -169,10 +174,7 @@ fn new_searcher(
 
     let mut nuc = Nucleo::<OptText>::new(
         Config::DEFAULT,
-        std::sync::Arc::new(move || {
-            // NOTE: Can fail, but failure doesn't break the program as a whole.
-            let _ = notify_ch.send(());
-        }),
+        notify,
         // NOTE: There might be room for some optimization in thread allocation here, either by capping the number of threads for each Nucleo instance, or using the multi-column capabilities to merge the instances together.
         None,
         1,
@@ -216,8 +218,7 @@ mod tests {
     }
 
     fn parse_source_from_cache(source: Source) {
-        let (send, _) = channel();
-        let (mut searcher, handle) = new_searcher(source, false, send);
+        let (mut searcher, handle) = new_searcher(source, false, Arc::new(|| {}));
         handle
             .join()
             .expect("parsing cached data should be infallible");

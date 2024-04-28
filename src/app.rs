@@ -14,6 +14,7 @@ use ratatui::{
 };
 use std::io;
 use std::time::Duration;
+use tracing::debug;
 use tui_widget_list::{List, ListState};
 
 // XXX: Optimization idea: Have a "results cache stack" where, each time search_string is appended to, we push the current search results; and when Backspace is pressed, instead of re-searching we just pop the stack. On tab change, we have to clear the stack. Might not be worth it.
@@ -94,10 +95,13 @@ impl App {
         while let Ok(false) = event::poll(Duration::from_millis(500)) {
             if self.pages[self.active_page]
                 .results_waiting
-                .try_recv()
-                .is_ok()
+                .load(std::sync::atomic::Ordering::Relaxed)
             {
+                self.pages[self.active_page]
+                    .results_waiting
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 self.init_search();
+                debug!("Found waiting search results, rendering them");
                 return Ok(());
             }
         }
@@ -109,6 +113,7 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) {
+        debug!("Handling a key event");
         match key.code {
             // TODO: How should the highlighted item update as we move across tabs?
             // More importantly, how about changing the search terms?
@@ -223,6 +228,7 @@ impl Widget for &mut App {
     where
         Self: Sized,
     {
+        debug!("Rendering app");
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
