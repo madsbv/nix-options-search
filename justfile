@@ -4,3 +4,7 @@ update-cache:
     curl "https://nix-community.github.io/home-manager/options.xhtml" > "data/home-manager-index.html"
     curl "https://nix-community.github.io/home-manager/nixos-options.xhtml" > "data/home-manager-nixos-index.html"
     curl "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml" > "data/home-manager-nix-darwin-index.html"
+
+alias ld := log-debug
+log-debug:
+    RUST_LOG="nox=DEBUG" cargo run
