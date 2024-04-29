@@ -85,21 +85,21 @@ pub struct OptText {
 impl From<OptRawHTML> for OptText {
     fn from(html: OptRawHTML) -> Self {
         let dec = TrivialDecorator::new();
-        let name = from_read_with_decorator(html.name.as_bytes(), 1000, dec.clone());
-        let description = from_read_with_decorator(html.description.as_bytes(), 1000, dec.clone());
-        let var_type = from_read_with_decorator(html.var_type.as_bytes(), 1000, dec.clone())
+        let name = from_read_with_decorator(html.name.as_bytes(), 10000, dec.clone());
+        let description = from_read_with_decorator(html.description.as_bytes(), 10000, dec.clone());
+        let var_type = from_read_with_decorator(html.var_type.as_bytes(), 10000, dec.clone())
             .trim_start_matches("Type:")
             .trim()
             .to_string();
-        let default = from_read_with_decorator(html.default.as_bytes(), 1000, dec.clone())
+        let default = from_read_with_decorator(html.default.as_bytes(), 10000, dec.clone())
             .trim_start_matches("Default:")
             .trim()
             .to_string();
-        let example = from_read_with_decorator(html.example.as_bytes(), 1000, dec.clone())
+        let example = from_read_with_decorator(html.example.as_bytes(), 10000, dec.clone())
             .trim_start_matches("Example:")
             .trim()
             .to_string();
-        let declared_by = from_read_with_decorator(html.declared_by.as_bytes(), 1000, dec.clone())
+        let declared_by = from_read_with_decorator(html.declared_by.as_bytes(), 10000, dec.clone())
             .trim_start_matches("Declared By:")
             .trim()
             .to_string();
