@@ -36,12 +36,16 @@ pub struct ListableOptWidget {
 impl ListableOptWidget {
     const DEFAULT_HEIGHT: usize = 4;
 
-    pub fn new(value: OptText, width: usize) -> Self {
+    pub fn new(value: OptText, width: usize, index: usize) -> Self {
         ListableOptWidget {
             content: value,
             height: ListableOptWidget::DEFAULT_HEIGHT,
             width,
-            style: Style::default(),
+            style: if index % 2 == 0 {
+                Style::default()
+            } else {
+                Style::default().bg(Color::Indexed(236))
+            },
         }
     }
 }

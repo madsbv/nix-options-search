@@ -204,7 +204,8 @@ impl App {
         let results_list = List::new(
             self.get_results(None)
                 .into_iter()
-                .map(|r| ListableOptWidget::new(r, width))
+                .enumerate()
+                .map(|(i, r)| ListableOptWidget::new(r, width, i))
                 .collect(),
         )
         .block(results_block);
