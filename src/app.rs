@@ -2,7 +2,7 @@ use crate::opt_data::OptText;
 use crate::opt_display::ListableOptWidget;
 use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::widgets::Padding;
 use ratatui::{
     prelude::*,
@@ -113,41 +113,45 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) {
-        debug!("Handling a key event");
-        match key.code {
-            // TODO: How should the highlighted item update as we move across tabs?
-            // More importantly, how about changing the search terms?
-            KeyCode::Char(c) => {
-                self.search_string.push(c);
-                self.input_status = InputStatus::Append;
-                self.result_list_state.select(Some(0));
-            }
-            KeyCode::Backspace => {
-                self.search_string.pop();
-                self.input_status = InputStatus::Change;
-                // self.result_list_state.select(Some(0));
-            }
-            KeyCode::Right => {
+        debug!(name: "Handling a key event", key = format!("{key:?}"));
+        match (key.code, key.modifiers) {
+            (KeyCode::Right, _) | (KeyCode::Char('l'), KeyModifiers::CONTROL) => {
                 if self.active_page + 1 < self.pages.len() {
                     self.active_page += 1;
                     self.input_status = InputStatus::Change;
                     self.result_list_state.select(None);
                 }
             }
-            KeyCode::Left => {
+            (KeyCode::Left, _) | (KeyCode::Char('h'), KeyModifiers::CONTROL) => {
                 if self.active_page > 0 {
                     self.active_page -= 1;
                     self.input_status = InputStatus::Change;
                     self.result_list_state.select(None);
                 }
             }
-            KeyCode::Down => {
+            (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::CONTROL) => {
                 self.result_list_state.next();
             }
-            KeyCode::Up => {
+            (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::CONTROL) => {
                 self.result_list_state.previous();
             }
-            KeyCode::Esc => self.exit = true,
+            (KeyCode::Esc, _) => self.exit = true,
+            (KeyCode::Backspace, KeyModifiers::ALT) => {
+                // Clear the search field
+                // KeyModifier CTRL gets picked up as C-h instead
+                self.search_string.clear();
+                self.input_status = InputStatus::Change;
+                self.result_list_state.select(Some(0));
+            }
+            (KeyCode::Backspace, _) => {
+                self.search_string.pop();
+                self.input_status = InputStatus::Change;
+            }
+            (KeyCode::Char(c), m) if m == KeyModifiers::NONE || m == KeyModifiers::SHIFT => {
+                self.search_string.push(c);
+                self.input_status = InputStatus::Append;
+                self.result_list_state.select(Some(0));
+            }
             _ => {}
         }
         self.init_search();
@@ -156,7 +160,6 @@ impl App {
 
 impl App {
     fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
-        // TODO: Styling
         let width_of_tabs_widget: usize =
             self.pages.iter().map(|p| p.name().len()).sum::<usize>() + self.pages.len() * 3 + 1;
         let tabs_layout = Layout::default()
@@ -173,7 +176,6 @@ impl App {
             .style(Style::default().white())
             .highlight_style(Style::default().yellow())
             .select(self.active_page)
-            // .divider(symbols::DOT)
             .padding(" ", " ");
 
         tabs.render(tabs_layout[1], buf);
@@ -181,6 +183,7 @@ impl App {
 
     fn render_results(&mut self, area: Rect, buf: &mut Buffer) {
         let title = Title::from(format!(" {} ", self.pages[self.active_page].name()).bold());
+        // TODO: Update
         let instructions = Title::from(Line::from(vec![
             " Change tabs: ".into(),
             "<Left>/<Right>, ".yellow().bold(),
