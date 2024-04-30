@@ -207,12 +207,15 @@ impl App {
 
     fn render_results(&mut self, area: Rect, buf: &mut Buffer) {
         let title = Title::from(format!(" {} ", self.pages[self.active_page].name()).bold());
-        // TODO: Update
         let instructions = Title::from(Line::from(vec![
-            " Change tabs: ".into(),
-            "<Left>/<Right>, ".yellow().bold(),
-            "Quit: ".into(),
-            "<Esc> ".yellow().bold(),
+            " Navigation ".into(),
+            "Arrows/C-[hjkl], ".yellow().bold(),
+            "Quit ".into(),
+            "<Esc>, ".yellow().bold(),
+            "Open in browser: Source ".into(),
+            "<Enter>, ".yellow().bold(),
+            "Docs ".into(),
+            "<C-o> ".yellow().bold(),
         ]));
 
         let results_block = Block::default()
