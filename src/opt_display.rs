@@ -15,7 +15,7 @@ use tui_widget_list::{ListableWidget, ScrollAxis};
 /// ######################################################
 
 pub struct ListableOptWidget {
-    content: OptText,
+    pub content: OptText,
     height: usize,
     width: usize,
     style: Style,

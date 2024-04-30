@@ -26,6 +26,7 @@ pub struct App {
     // To use Nucleo's append optimization and avoid reparsing if pattern hasn't changed
     input_status: InputStatus,
     result_list_state: ListState,
+    selected_item: Option<OptText>,
     exit: bool,
 }
 
@@ -43,6 +44,7 @@ impl App {
             active_page: 0,
             input_status: InputStatus::Change,
             result_list_state: ListState::default(),
+            selected_item: None,
             exit: false,
         }
     }
@@ -147,6 +149,19 @@ impl App {
                 self.search_string.pop();
                 self.input_status = InputStatus::Change;
             }
+            (KeyCode::Char('o'), KeyModifiers::CONTROL) => {
+                let url = self.pages[self.active_page].url();
+                open_url(url);
+            }
+            (KeyCode::Enter, _) => {
+                if let Some(ref o) = self.selected_item {
+                    for u in &o.declared_by_urls {
+                        open_url(u);
+                    }
+                }
+                // TODO: Default behaviour if there's no url? Pop up an error message somehow?
+                // TODO: When there's multiple urls, can we pop up a selection box?
+            }
             (KeyCode::Char(c), m) if m == KeyModifiers::NONE || m == KeyModifiers::SHIFT => {
                 self.search_string.push(c);
                 self.input_status = InputStatus::Append;
@@ -156,6 +171,11 @@ impl App {
         }
         self.init_search();
     }
+}
+
+fn open_url(url: &str) {
+    let res = open::that_detached(url);
+    debug!(name: "Open url", "{url}, {res:?}");
 }
 
 impl App {
@@ -212,6 +232,13 @@ impl App {
                 .collect(),
         )
         .block(results_block);
+
+        self.selected_item = if let Some(i) = self.result_list_state.selected() {
+            Some(results_list.items[i].content.clone())
+        } else {
+            None
+        };
+
         results_list.render(area, buf, &mut self.result_list_state);
     }
 

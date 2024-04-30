@@ -25,6 +25,7 @@ pub enum InputStatus {
 pub struct Finder {
     source: Source,
     // TODO: Can we optimize memory usage by making this take Cows?
+    // If ListableWidgets receive list geometry as input, switch this to storing precomputed ListableOptWidgets instead
     searcher: Nucleo<OptText>,
     injection_handle: Option<JoinHandle<()>>,
     pub(crate) results_waiting: Arc<AtomicBool>,
@@ -48,6 +49,10 @@ impl Finder {
 
     pub fn name(&self) -> String {
         self.source.to_string()
+    }
+
+    pub fn url(&self) -> &'static str {
+        self.source.url()
     }
 
     pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
@@ -100,7 +105,7 @@ pub enum Source {
 }
 
 impl Source {
-    fn url(self) -> &'static str {
+    pub fn url(self) -> &'static str {
         match self {
             Self::NixDarwin => "https://daiderd.com/nix-darwin/manual/index.html",
             Self::NixOS => "https://nixos.org/manual/nixos/stable/options",

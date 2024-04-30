@@ -51,6 +51,8 @@ impl OptData<'_> {
             .to_string()
     }
 
+    /// NOTE: Options can be declared in multiple places, hence returning a Vec here.
+    /// They can also be declared in *no* places, e.g. `Background` for Nix-Darwin.
     fn extract_urls_from_section<'a>(
         &'a self,
         section: &'a [HTMLTag],
