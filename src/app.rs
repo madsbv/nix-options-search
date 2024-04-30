@@ -150,8 +150,12 @@ impl App {
                 self.input_status = InputStatus::Change;
             }
             (KeyCode::Char('o'), KeyModifiers::CONTROL) => {
-                let url = self.pages[self.active_page].url();
-                open_url(url);
+                let source = &self.pages[self.active_page];
+                if let Some(ref o) = self.selected_item {
+                    open_url(&source.url_to(o));
+                } else {
+                    open_url(source.url());
+                };
             }
             (KeyCode::Enter, _) => {
                 if let Some(ref o) = self.selected_item {

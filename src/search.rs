@@ -93,6 +93,10 @@ impl Finder {
         while self.searcher.tick(1000).running {}
         Ok(self.get_results(max))
     }
+
+    pub fn url_to(&self, opt: &OptText) -> String {
+        self.source.url_to(opt)
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -117,6 +121,15 @@ impl Source {
                 "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml"
             }
         }
+    }
+
+    pub fn url_to(self, opt: &OptText) -> String {
+        let tag = match self {
+            Self::NixDarwin | Self::NixOS | Self::HomeManager => "opt",
+            Self::HomeManagerNixOS => "nixos-opt",
+            Self::HomeManagerNixDarwin => "nix-darwin-opt",
+        };
+        format!("{}#{}-{}", self.url(), tag, opt.name)
     }
 
     pub(crate) fn cache(self) -> &'static str {
