@@ -29,7 +29,7 @@ rustPlatform.buildRustPackage {
 
   buildInputs = [ ];
   nativeBuildInputs = [ ];
-  cargoSha256 = "sha256-Y+PSTM0X6nAzZVT8k55d4lCA/cEqxgyL+cZRcbiDjpU=";
+  cargoLock.lockFile = ./Cargo.lock;
 
   meta = with lib; {
     homepage = "https://github.com/madsbv/nix-options-search";
