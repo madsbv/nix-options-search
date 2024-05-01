@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Add option to scroll through list and highlight individual items to show more information.
+- Add option to open link to the source of highlighted item, and the docs webpage.
+- Add Vim style bindings.
+- Add dynamically updated, smaller, and much faster caching system. Nox now no longer has a compiled-in cache, but instead manages and auto-updates its cache in its data directory. The location of the cache is determined by `$NOX_DATA` if it is defined; else to a project-specific folder in the standard data directory for your system (`$XDG_DATA_HOME` on Linux, `~/Library/Application Support` on Darwin).
+- Add a nix flake for this package.
 
 ## [0.2.1] - 2024-04-18
 - Update dependencies and cached html files
