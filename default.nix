@@ -6,7 +6,6 @@
   rustPlatform ? pkgs.rustPlatform,
   fetchFromGitHub ? pkgs.fetchFromGitHub,
   gitignoreSrc ? null,
-  pkgconfig ? pkgs.pkgconfig,
 }:
 
 let
