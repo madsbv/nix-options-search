@@ -138,19 +138,27 @@ impl Source {
         path
     }
 
-    fn store_cache(self, opts: &[OptText]) -> Result<()> {
+    fn store_cache_to(opts: &[OptText], path: &PathBuf) -> Result<()> {
         let bitdata = encode(opts);
         let zstddata =
             zstd::stream::encode_all(bitdata.as_slice(), Source::ZSTD_COMPRESSION_LEVEL)?;
-        std::fs::write(self.cache_path(), zstddata)?;
+        std::fs::write(path, zstddata)?;
         Ok(())
     }
 
-    fn load_cache(self) -> Result<Vec<OptText>> {
-        let zstddata = std::fs::read(self.cache_path())?;
+    fn store_cache(self, opts: &[OptText]) -> Result<()> {
+        Source::store_cache_to(opts, &self.cache_path())
+    }
+
+    fn load_cache_from(path: &PathBuf) -> Result<Vec<OptText>> {
+        let zstddata = std::fs::read(path)?;
         let bitdata = zstd::stream::decode_all(zstddata.as_slice())?;
         let opts = decode(&bitdata)?;
         Ok(opts)
+    }
+
+    fn load_cache(self) -> Result<Vec<OptText>> {
+        Source::load_cache_from(&self.cache_path())
     }
 
     /// Returns Ok(bool) if and only if there is a readable cache file. The value of the bool depends on the last modified time of the file, as reported by the file system.
@@ -245,40 +253,25 @@ fn new_searcher(
 mod tests {
 
     use super::*;
+    use tempfile::tempdir;
 
-    /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
     #[test]
-    fn parse_caches() {
-        let mut handles = vec![];
-        for s in [
-            Source::NixDarwin,
-            Source::NixOS,
-            Source::HomeManager,
-            Source::HomeManagerNixOS,
-            Source::HomeManagerNixDarwin,
-        ] {
-            handles.push((s, std::thread::spawn(move || parse_source_from_cache(s))));
-        }
-        for h in handles {
-            assert!(h.1.join().is_ok(), "Parsing cache for {} failed", h.0);
-        }
-    }
-
-    // TODO: This test and many others make less sense now, since they're network dependent. How to fix? Keep a locally stored cache around for testing purposes? Seems messy...
-    // We should probably keep some raw HTML around and rig things so we can do round trip testing with the cache.
-    fn parse_source_from_cache(source: Source) {
-        let (mut searcher, handle) = new_searcher(
-            Box::new(move || source.load_cache().unwrap()),
-            Arc::new(|| {}),
+    fn test_cache_roundtrip() {
+        let s = Source::NixDarwin;
+        let opts = s.opt_text_from_web().expect(
+            "Can get and parse options for {s} from the web (tests require network connection)",
         );
-        handle
-            .join()
-            .expect("parsing cached data should be infallible");
-        while searcher.tick(1000).running {}
-        let snap = searcher.snapshot();
 
-        // TODO: Do some actual search comparisons instead
-        assert!(snap.item_count() > 5, "Parsing from {source} failed");
+        let tmpdir = tempdir().expect("Can create temporary directory");
+        let path = tmpdir.path().join(PathBuf::from(format!("{s}.zst")));
+
+        Source::store_cache_to(&opts, &path)
+            .expect("Can encode, compress and store cache to local testing directory");
+        let roundtrip_opts = Source::load_cache_from(&path).expect(
+            "Can read, decompress and decode stored cache data from local testing directory",
+        );
+
+        assert_eq!(opts, roundtrip_opts);
     }
 
     /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.

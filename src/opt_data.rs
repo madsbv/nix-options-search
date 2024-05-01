@@ -119,7 +119,7 @@ impl From<OptData<'_>> for OptRawHTML {
 
 // TODO: Does it make sense to make OptText contain a reference to its source somehow? Might improve API.
 // Else Source could contain OptTexts?
-#[derive(Clone, Debug, Encode, Decode)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct OptText {
     pub name: String,
     pub description: String,
