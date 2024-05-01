@@ -107,6 +107,7 @@ pub enum Source {
 
 impl Source {
     const CACHE_MAX_AGE: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+    // From docs: Compression level 0 means "use zstd default compression level", currently 3
     const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
     fn url(self) -> &'static str {

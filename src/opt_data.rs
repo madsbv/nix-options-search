@@ -98,10 +98,6 @@ pub struct OptRawHTML {
 
 impl From<OptData<'_>> for OptRawHTML {
     fn from(value: OptData<'_>) -> Self {
-        // This seems to do the right thing on first glance.
-        // TODO: Add the declared_by_link/declared_by_url field to OptRawHTML and OptText, and integrate with UI
-        // TODO: Write unit test for this function with a couple of example HTML snippets
-
         let declared_by_urls = value.declared_by_urls();
 
         debug!(name: "Convert OptData to OptRawHTML", declared_by = format!("{:?}", value.declared_by), declared_by = format!("{declared_by_urls:?}"));
@@ -117,8 +113,6 @@ impl From<OptData<'_>> for OptRawHTML {
     }
 }
 
-// TODO: Does it make sense to make OptText contain a reference to its source somehow? Might improve API.
-// Else Source could contain OptTexts?
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct OptText {
     pub name: String,
