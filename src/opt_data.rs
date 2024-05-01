@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use bitcode::{Decode, Encode};
 use color_eyre::eyre::{ensure, Result};
 use html2text::from_read_with_decorator;
 use html2text::render::text_renderer::TrivialDecorator;
@@ -116,7 +117,9 @@ impl From<OptData<'_>> for OptRawHTML {
     }
 }
 
-#[derive(Clone, Debug)]
+// TODO: Does it make sense to make OptText contain a reference to its source somehow? Might improve API.
+// Else Source could contain OptTexts?
+#[derive(Clone, Debug, Encode, Decode)]
 pub struct OptText {
     pub name: String,
     pub description: String,
@@ -178,13 +181,14 @@ impl std::fmt::Display for OptText {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}\n--------------",
+            "Name: {}\nDescription: {}\n{}\n{}\n{}\n{}\n{:?}\n--------------",
             self.name,
             self.description,
             self.var_type,
             self.default,
             self.example,
             self.declared_by,
+            self.declared_by_urls
         )
     }
 }
@@ -302,28 +306,5 @@ impl<'dom> OptParser<'dom> {
             // Reverse each inner and clone
             .map(|s| s.iter().rev().copied().cloned().collect::<Vec<_>>())
             .collect::<Vec<_>>()
-    }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // NOTE: This is a costly test, and is already covered by tests in crate::search and crate::app.
-    #[ignore]
-    #[test]
-    fn parse_caches_to_opts() {
-        use crate::search::Source;
-        for source in [
-            Source::NixDarwin,
-            Source::NixOS,
-            Source::HomeManager,
-            Source::HomeManagerNixOS,
-            Source::HomeManagerNixDarwin,
-        ] {
-            let dom =
-                tl::parse(source.cache(), tl::ParserOptions::default()).expect("cache should work");
-            let opts = parse_options(&dom).expect("cache should work");
-            assert!(!opts.is_empty());
-        }
     }
 }

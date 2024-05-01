@@ -1,19 +1,16 @@
+use bitcode::{decode, encode};
 use color_eyre::eyre::Result;
-use include_flate::flate;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use std::fmt;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
+use std::time::Duration;
 
+use crate::logging::data_dir;
 use crate::opt_data::{parse_options, OptText};
-
-flate!(static NIX_DARWIN_CACHED_HTML: str from "data/nix-darwin-index.html");
-flate!(static NIXOS_CACHED_HTML: str from "data/nixos-index.html");
-flate!(static HOME_MANAGER_CACHED_HTML: str from "data/home-manager-index.html");
-flate!(static HOME_MANAGER_NIXOS_CACHED_HTML: str from "data/home-manager-nixos-index.html");
-flate!(static HOME_MANAGER_NIX_DARWIN_CACHED_HTML: str from "data/home-manager-nix-darwin-index.html");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InputStatus {
@@ -38,7 +35,7 @@ impl Finder {
         let notify = Arc::new(move || {
             results_sender.store(true, Ordering::Relaxed);
         });
-        let (searcher, handle) = new_searcher(source, true, notify);
+        let (searcher, handle) = new_searcher(Box::new(move || source.opt_text()), notify);
         Finder {
             source,
             searcher,
@@ -109,7 +106,10 @@ pub enum Source {
 }
 
 impl Source {
-    pub fn url(self) -> &'static str {
+    const CACHE_MAX_AGE: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+    const ZSTD_COMPRESSION_LEVEL: i32 = 0;
+
+    fn url(self) -> &'static str {
         match self {
             Self::NixDarwin => "https://daiderd.com/nix-darwin/manual/index.html",
             Self::NixOS => "https://nixos.org/manual/nixos/stable/options",
@@ -123,7 +123,7 @@ impl Source {
         }
     }
 
-    pub fn url_to(self, opt: &OptText) -> String {
+    fn url_to(self, opt: &OptText) -> String {
         let tag = match self {
             Self::NixDarwin | Self::NixOS | Self::HomeManager => "opt",
             Self::HomeManagerNixOS => "nixos-opt",
@@ -132,32 +132,72 @@ impl Source {
         format!("{}#{}-{}", self.url(), tag, opt.name)
     }
 
-    pub(crate) fn cache(self) -> &'static str {
-        match self {
-            Self::NixDarwin => &NIX_DARWIN_CACHED_HTML,
-            Self::NixOS => &NIXOS_CACHED_HTML,
-            Self::HomeManager => &HOME_MANAGER_CACHED_HTML,
-            Self::HomeManagerNixOS => &HOME_MANAGER_NIXOS_CACHED_HTML,
-            Self::HomeManagerNixDarwin => &HOME_MANAGER_NIX_DARWIN_CACHED_HTML,
-        }
+    fn cache_path(self) -> PathBuf {
+        let mut path = data_dir().clone();
+        path.push(format!("{self}.zst"));
+        path
     }
 
-    pub(crate) fn opt_text_from_cache(self) -> Vec<OptText> {
-        let dom = tl::parse(self.cache(), tl::ParserOptions::default()).expect("cache should work");
-        parse_options(&dom)
-            .expect("cache should work")
-            .into_iter()
-            .map(std::convert::Into::into)
-            .collect()
+    fn store_cache(self, opts: &[OptText]) -> Result<()> {
+        let bitdata = encode(opts);
+        let zstddata =
+            zstd::stream::encode_all(bitdata.as_slice(), Source::ZSTD_COMPRESSION_LEVEL)?;
+        std::fs::write(self.cache_path(), zstddata)?;
+        Ok(())
     }
 
-    pub(crate) fn opt_text_from_url(self) -> Result<Vec<OptText>> {
+    fn load_cache(self) -> Result<Vec<OptText>> {
+        let zstddata = std::fs::read(self.cache_path())?;
+        let bitdata = zstd::stream::decode_all(zstddata.as_slice())?;
+        let opts = decode(&bitdata)?;
+        Ok(opts)
+    }
+
+    /// Returns Ok(bool) if and only if there is a readable cache file. The value of the bool depends on the last modified time of the file, as reported by the file system.
+    fn cache_is_current(self) -> Result<bool> {
+        let f = std::fs::File::open(self.cache_path())?;
+        let last_modified = f.metadata()?.modified()?;
+        let age = last_modified.elapsed()?;
+        Ok(age < Source::CACHE_MAX_AGE)
+    }
+
+    fn opt_text_from_web(self) -> Result<Vec<OptText>> {
         let res = ureq::get(self.url()).call()?;
         let mut html = String::new();
         res.into_reader().read_to_string(&mut html)?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
 
         parse_options(&dom).map(|ok| ok.into_iter().map(std::convert::Into::into).collect())
+    }
+
+    // We could return a Result or Option to account for possible failure modes, but currently I'm not sure what I'd use it for.
+    // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
+    fn opt_text(self) -> Vec<OptText> {
+        let cache_age = self.cache_is_current();
+        if let Ok(true) = cache_age {
+            if let Ok(opts) = self.load_cache() {
+                // Happy path: Just use existing cache
+                return opts;
+            }
+        }
+        // Cache is outdated or there was a reading error
+        if let Ok(opts) = self.opt_text_from_web() {
+            // We can get the opts from the web and update the cache
+            let _ = self.store_cache(&opts);
+            return opts;
+        }
+        // Cache is outdated or broken and we're effectively offline
+        if let Ok(false) = cache_age {
+            // If the cache was just outdated, returning the outdated cache is better than nothing
+            // If loading the cache fails, other Sources might still work, so avoid crashing the program by unwrapping.
+            if let Ok(opts) = self.load_cache() {
+                return opts;
+            }
+        }
+        // We have nothing useful to return
+        // TODO: Push out an "error" OptText for the user to see?
+        // TODO: Embed precomputed cache at compile time to use as a last ditch fallback?
+        vec![]
     }
 }
 
@@ -176,20 +216,9 @@ impl fmt::Display for Source {
 
 /// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
 fn new_searcher(
-    source: Source,
-    try_http: bool,
+    opts_fn: Box<dyn Fn() -> Vec<OptText> + Send>,
     notify: Arc<dyn Fn() + Sync + Send>,
 ) -> (Nucleo<OptText>, JoinHandle<()>) {
-    let opts = move || {
-        if try_http {
-            source
-                .opt_text_from_url()
-                .unwrap_or(source.opt_text_from_cache())
-        } else {
-            source.opt_text_from_cache()
-        }
-    };
-
     let mut nuc = Nucleo::<OptText>::new(
         Config::DEFAULT,
         notify,
@@ -200,7 +229,7 @@ fn new_searcher(
     let inj = nuc.injector();
 
     let handle = std::thread::spawn(move || {
-        let data = opts();
+        let data = opts_fn();
         for d in data {
             // TODO: Add the right data to search string
             // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
@@ -235,8 +264,13 @@ mod tests {
         }
     }
 
+    // TODO: This test and many others make less sense now, since they're network dependent. How to fix? Keep a locally stored cache around for testing purposes? Seems messy...
+    // We should probably keep some raw HTML around and rig things so we can do round trip testing with the cache.
     fn parse_source_from_cache(source: Source) {
-        let (mut searcher, handle) = new_searcher(source, false, Arc::new(|| {}));
+        let (mut searcher, handle) = new_searcher(
+            Box::new(move || source.load_cache().unwrap()),
+            Arc::new(|| {}),
+        );
         handle
             .join()
             .expect("parsing cached data should be infallible");
