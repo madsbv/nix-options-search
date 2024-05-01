@@ -5,3 +5,5 @@
 /flamegraph.svg
 /TODO.md
 /data/
+/result
+flake.lock
