@@ -1,5 +1,5 @@
 {
-  description = "A very basic flake";
+  description = "Flake based installation of nix-options-search";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; # We want to use packages from the binary cache
@@ -11,11 +11,7 @@
   };
 
   outputs =
-    inputs@{
-      nixpkgs,
-      flake-utils,
-      ...
-    }:
+    inputs@{ nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachSystem
       [
         "x86_64-linux"
@@ -32,7 +28,7 @@
         rec {
           packages.nox = pkgs.callPackage ./default.nix { inherit gitignoreSrc; };
 
-          legacyPackages = packages;
+          # legacyPackages = packages;
 
           defaultPackage = packages.nox;
 
