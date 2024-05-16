@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Block, Padding, Paragraph, Wrap},
 };
 use tracing::debug;
-use tui_widget_list::{ListableWidget, ScrollAxis};
+use tui_widget_list::{PreRender, ScrollAxis};
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -97,19 +97,28 @@ impl Widget for ListableOptWidget {
     }
 }
 
+impl PreRender for ListableOptWidget {
+    fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
+        todo!()
+    }
+}
+
+impl ListableOptWidget {
+    fn full_height(&self, width: u16) -> u16 {
+        // Description and example fields are laid out next to each other at a 2:1 ratio.
+        let description_height = (self.content.description.len() * 3) / (width * 2);
+        let example_height = (self.content.example.len() * 3) / width;
+
+        // Integer division truncates decimals
+        (description_height.max(example_height) + 3).max(ListableOptWidget::DEFAULT_HEIGHT)
+    }
+}
+
 impl ListableWidget for ListableOptWidget {
     fn highlight(self) -> Self
     where
         Self: Sized,
     {
-        // Description and example fields are laid out next to each other at a 2:1 ratio.
-        let description_height = (self.content.description.len() * 3) / (self.width * 2);
-        let example_height = (self.content.example.len() * 3) / self.width;
-
-        // Integer division truncates decimals
-        let height =
-            (description_height.max(example_height) + 3).max(ListableOptWidget::DEFAULT_HEIGHT);
-
         debug!(
             name: "Compute highlighted item",
             description = self.content.description,
