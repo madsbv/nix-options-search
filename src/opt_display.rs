@@ -3,8 +3,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding, Paragraph, Wrap},
 };
-use tracing::debug;
-use tui_widget_list::{PreRender, ScrollAxis};
+use tui_widget_list::PreRender;
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -16,24 +15,16 @@ use tui_widget_list::{PreRender, ScrollAxis};
 
 pub struct ListableOptWidget {
     pub content: OptText,
-    height: usize,
-    width: usize,
     style: Style,
 }
 
 impl ListableOptWidget {
-    const DEFAULT_HEIGHT: usize = 4;
+    const DEFAULT_HEIGHT: u16 = 4;
 
-    pub fn new(value: OptText, width: usize, index: usize) -> Self {
+    pub fn new(value: OptText) -> Self {
         ListableOptWidget {
             content: value,
-            height: ListableOptWidget::DEFAULT_HEIGHT,
-            width,
-            style: if index % 2 == 0 {
-                Style::default()
-            } else {
-                Style::default().bg(Color::Indexed(236))
-            },
+            style: Style::default(),
         }
     }
 }
@@ -99,44 +90,27 @@ impl Widget for ListableOptWidget {
 
 impl PreRender for ListableOptWidget {
     fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
-        todo!()
+        self.style = if context.is_selected {
+            Style::default().bg(Color::DarkGray)
+        } else if context.index % 2 == 0 {
+            Style::default()
+        } else {
+            Style::default().bg(Color::Indexed(236))
+        };
+        self.full_height(context.cross_axis_size)
     }
 }
 
 impl ListableOptWidget {
     fn full_height(&self, width: u16) -> u16 {
         // Description and example fields are laid out next to each other at a 2:1 ratio.
-        let description_height = (self.content.description.len() * 3) / (width * 2);
-        let example_height = (self.content.example.len() * 3) / width;
+
+        #[allow(clippy::cast_possible_truncation)]
+        let description_height = (self.content.description.len() as u16 * 3) / (width * 2);
+        #[allow(clippy::cast_possible_truncation)]
+        let example_height = (self.content.example.len() as u16 * 3) / width;
 
         // Integer division truncates decimals
         (description_height.max(example_height) + 3).max(ListableOptWidget::DEFAULT_HEIGHT)
-    }
-}
-
-impl ListableWidget for ListableOptWidget {
-    fn highlight(self) -> Self
-    where
-        Self: Sized,
-    {
-        debug!(
-            name: "Compute highlighted item",
-            description = self.content.description,
-            example = self.content.example,
-            width = self.width,
-            description_height = description_height,
-            example_height = example_height,
-            height = height,
-        );
-
-        Self {
-            height,
-            style: Style::default().bg(Color::DarkGray),
-            ..self
-        }
-    }
-
-    fn size(&self, _: &ScrollAxis) -> usize {
-        self.height
     }
 }

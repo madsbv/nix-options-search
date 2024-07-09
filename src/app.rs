@@ -229,18 +229,15 @@ impl App {
             .border_set(border::THICK)
             .padding(Padding::horizontal(1));
 
-        let width = results_block.inner(area).width as usize;
-
         let results_list = List::new(
             self.get_results(None)
                 .into_iter()
-                .enumerate()
-                .map(|(i, r)| ListableOptWidget::new(r, width, i))
+                .map(ListableOptWidget::new)
                 .collect(),
         )
         .block(results_block);
 
-        self.selected_item = if let Some(i) = self.result_list_state.selected() {
+        self.selected_item = if let Some(i) = self.result_list_state.selected {
             Some(results_list.items[i].content.clone())
         } else {
             None
