@@ -237,8 +237,15 @@ impl App {
         )
         .block(results_block);
 
+        let results_items = &results_list.items;
+
         self.selected_item = if let Some(i) = self.result_list_state.selected {
-            Some(results_list.items[i].content.clone())
+            results_items
+                .get(i)
+                // If the .get(i) call returns None, it's because we used to have more search results
+                // before the search term was changed, and now the selection index is out of bounds.
+                .or(results_items.last())
+                .map(|s| s.content.clone())
         } else {
             None
         };

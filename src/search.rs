@@ -307,4 +307,10 @@ mod tests {
             "Searching with finder from {source} failed"
         );
     }
+
+    #[test]
+    fn test_empty_search() {
+        let mut f = Finder::new(Source::NixDarwin);
+        assert_eq!(f.find_blocking("asdfasdfasdf", Some(5)).expect("find blocking should not fail").len(), 0, "Either empty searches crash or a search term that was thought to yield no results now does.");
+    }
 }
