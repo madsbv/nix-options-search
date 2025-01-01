@@ -1,7 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
-  stdenv ? pkgs.stdenv,
-  lib ? stdenv.lib,
+  lib ? pkgs.lib,
   # A set providing `buildRustPackage :: attrsets -> derivation`
   rustPlatform ? pkgs.rustPlatform,
   fetchFromGitHub ? pkgs.fetchFromGitHub,
