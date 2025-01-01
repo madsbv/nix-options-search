@@ -1,4 +1,3 @@
-use bitcode::{decode, encode};
 use color_eyre::eyre::Result;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
@@ -140,7 +139,7 @@ impl Source {
     }
 
     fn store_cache_to(opts: &[OptText], path: &PathBuf) -> Result<()> {
-        let bitdata = encode(opts);
+        let bitdata = bitcode::encode(opts);
         let zstddata =
             zstd::stream::encode_all(bitdata.as_slice(), Source::ZSTD_COMPRESSION_LEVEL)?;
         std::fs::write(path, zstddata)?;
@@ -154,7 +153,7 @@ impl Source {
     fn load_cache_from(path: &PathBuf) -> Result<Vec<OptText>> {
         let zstddata = std::fs::read(path)?;
         let bitdata = zstd::stream::decode_all(zstddata.as_slice())?;
-        let opts = decode(&bitdata)?;
+        let opts = bitcode::decode(&bitdata)?;
         Ok(opts)
     }
 

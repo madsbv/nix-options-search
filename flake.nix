@@ -26,13 +26,13 @@
           gitignoreSrc = pkgs.callPackage inputs.gitignore { };
         in
         rec {
-          packages.nox = pkgs.callPackage ./default.nix { inherit gitignoreSrc; };
+          packages.nox = pkgs.callPackage ./default.nix { inherit gitignoreSrc pkgs; };
 
           # legacyPackages = packages;
 
-          defaultPackage = packages.nox;
+          packages.default = import ./default.nix { inherit gitignoreSrc pkgs; };
 
-          devShell = pkgs.mkShell {
+          devShells.${system}.default = pkgs.mkShell {
             CARGO_INSTALL_ROOT = "${toString ./.}/.cargo";
 
             buildInputs = with pkgs; [
