@@ -129,7 +129,7 @@ impl Source {
             Self::HomeManagerNixOS => "nixos-opt",
             Self::HomeManagerNixDarwin => "nix-darwin-opt",
         };
-        format!("{}#{}-{}", self.url(), tag, opt.name)
+        format!("{}#{}-{}", self.url(), tag, opt.name.trim())
     }
 
     fn cache_path(self) -> PathBuf {
@@ -305,6 +305,17 @@ mod tests {
             0,
             "Searching with finder from {source} failed"
         );
+    }
+
+    #[test]
+    fn test_doc_urls_trimmed() {
+        // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
+        let s = Source::NixDarwin;
+        let urls = s.opt_text().into_iter().map(|opt| s.url_to(&opt));
+        for url in urls {
+            assert_eq!(url, url.trim());
+            assert_ne!(url.chars().last(), Some('\n'));
+        }
     }
 
     #[test]
