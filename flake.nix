@@ -25,10 +25,8 @@
           pkgs = nixpkgs.legacyPackages.${system};
           gitignoreSrc = pkgs.callPackage inputs.gitignore { };
         in
-        rec {
+        {
           packages.nox = pkgs.callPackage ./default.nix { inherit gitignoreSrc pkgs; };
-
-          # legacyPackages = packages;
 
           packages.default = import ./default.nix { inherit gitignoreSrc pkgs; };
 
