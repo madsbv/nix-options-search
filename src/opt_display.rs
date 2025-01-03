@@ -3,7 +3,6 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding, Paragraph, Wrap},
 };
-use tui_widget_list::PreRender;
 
 /// A widget to display a single option parsed from nix-darwin/nixos/home-manager.
 /// Layout:
@@ -13,23 +12,24 @@ use tui_widget_list::PreRender;
 /// #     ........................              ........ #
 /// ######################################################
 
-pub struct ListableOptWidget {
+#[derive(Clone)]
+pub struct OptListItem {
     pub content: OptText,
     style: Style,
 }
 
-impl ListableOptWidget {
+impl OptListItem {
     const DEFAULT_HEIGHT: u16 = 4;
 
     pub fn new(value: OptText) -> Self {
-        ListableOptWidget {
+        OptListItem {
             content: value,
             style: Style::default(),
         }
     }
 }
 
-impl Widget for ListableOptWidget {
+impl Widget for OptListItem {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -88,8 +88,8 @@ impl Widget for ListableOptWidget {
     }
 }
 
-impl PreRender for ListableOptWidget {
-    fn pre_render(&mut self, context: &tui_widget_list::PreRenderContext) -> u16 {
+impl OptListItem {
+    pub fn pre_render(&mut self, context: &tui_widget_list::ListBuildContext) -> u16 {
         self.style = if context.is_selected {
             Style::default().bg(Color::DarkGray)
         } else if context.index % 2 == 0 {
@@ -101,7 +101,7 @@ impl PreRender for ListableOptWidget {
     }
 }
 
-impl ListableOptWidget {
+impl OptListItem {
     fn full_height(&self, width: u16) -> u16 {
         // Description and example fields are laid out next to each other at a 2:1 ratio.
 
@@ -111,6 +111,6 @@ impl ListableOptWidget {
         let example_height = (self.content.example.len() as u16 * 3) / width;
 
         // Integer division truncates decimals
-        (description_height.max(example_height) + 3).max(ListableOptWidget::DEFAULT_HEIGHT)
+        (description_height.max(example_height) + 3).max(OptListItem::DEFAULT_HEIGHT)
     }
 }

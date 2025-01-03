@@ -1,5 +1,5 @@
 use crate::opt_data::OptText;
-use crate::opt_display::ListableOptWidget;
+use crate::opt_display::OptListItem;
 use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -7,15 +7,12 @@ use ratatui::widgets::Padding;
 use ratatui::{
     prelude::*,
     symbols::border,
-    widgets::{
-        block::{Block, Position, Title},
-        Borders, Paragraph, Tabs,
-    },
+    widgets::{block::Block, Borders, Paragraph, Tabs},
 };
 use std::io;
 use std::time::Duration;
 use tracing::debug;
-use tui_widget_list::{List, ListState};
+use tui_widget_list::{ListBuilder, ListState, ListView};
 
 // XXX: Optimization idea: Have a "results cache stack" where, each time search_string is appended to, we push the current search results; and when Backspace is pressed, instead of re-searching we just pop the stack. On tab change, we have to clear the stack. Might not be worth it.
 pub struct App {
@@ -87,7 +84,7 @@ impl App {
     }
 
     fn render_frame(&mut self, frame: &mut Frame) {
-        frame.render_widget(self, frame.size());
+        frame.render_widget(self, frame.area());
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
@@ -206,8 +203,8 @@ impl App {
     }
 
     fn render_results(&mut self, area: Rect, buf: &mut Buffer) {
-        let title = Title::from(format!(" {} ", self.pages[self.active_page].name()).bold());
-        let instructions = Title::from(Line::from(vec![
+        let title_text = format!(" {} ", self.pages[self.active_page].name());
+        let instructions = Line::from(vec![
             " Navigation ".into(),
             "Arrows/C-[hjkl], ".yellow().bold(),
             "Quit ".into(),
@@ -216,35 +213,35 @@ impl App {
             "<Enter>, ".yellow().bold(),
             "Docs ".into(),
             "<C-o> ".yellow().bold(),
-        ]));
+        ]);
 
         let results_block = Block::default()
-            .title(title.alignment(Alignment::Center))
-            .title(
-                instructions
-                    .alignment(Alignment::Center)
-                    .position(Position::Bottom),
-            )
+            .title_top(Line::from(title_text).bold().centered())
+            .title_bottom(instructions.centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
             .padding(Padding::horizontal(1));
 
-        let results_list = List::new(
-            self.get_results(None)
-                .into_iter()
-                .map(ListableOptWidget::new)
-                .collect(),
-        )
-        .block(results_block);
+        let results: Vec<OptListItem> = self
+            .get_results(None)
+            .into_iter()
+            .map(OptListItem::new)
+            .collect();
 
-        let results_items = &results_list.items;
+        let results_list_builder = ListBuilder::new(|context| {
+            let mut item = results[context.index].clone();
+            let height = item.pre_render(context);
+            (item, height)
+        });
+
+        let results_list = ListView::new(results_list_builder, results.len()).block(results_block);
 
         self.selected_item = if let Some(i) = self.result_list_state.selected {
-            results_items
+            results
                 .get(i)
                 // If the .get(i) call returns None, it's because we used to have more search results
                 // before the search term was changed, and now the selection index is out of bounds.
-                .or(results_items.last())
+                .or(results.last())
                 .map(|s| s.content.clone())
         } else {
             None

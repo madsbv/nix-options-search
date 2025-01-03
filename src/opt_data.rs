@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use bitcode::{Decode, Encode};
 use color_eyre::eyre::{ensure, Result};
 use html2text::from_read_with_decorator;
-use html2text::render::text_renderer::TrivialDecorator;
+use html2text::render::TrivialDecorator;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
 use tracing::debug;
 
@@ -126,25 +126,12 @@ pub struct OptText {
 
 impl From<OptRawHTML> for OptText {
     fn from(html: OptRawHTML) -> Self {
-        let dec = TrivialDecorator::new();
-        let name = from_read_with_decorator(html.name.as_bytes(), 10000, dec.clone());
-        let description = from_read_with_decorator(html.description.as_bytes(), 10000, dec.clone());
-        let var_type = from_read_with_decorator(html.var_type.as_bytes(), 10000, dec.clone())
-            .trim_start_matches("Type:")
-            .trim()
-            .to_string();
-        let default = from_read_with_decorator(html.default.as_bytes(), 10000, dec.clone())
-            .trim_start_matches("Default:")
-            .trim()
-            .to_string();
-        let example = from_read_with_decorator(html.example.as_bytes(), 10000, dec.clone())
-            .trim_start_matches("Example:")
-            .trim()
-            .to_string();
-        let declared_by = from_read_with_decorator(html.declared_by.as_bytes(), 10000, dec.clone())
-            .trim_start_matches("Declared By:")
-            .trim()
-            .to_string();
+        let name = read_html_strip_prefix(&html.name, None);
+        let description = read_html_strip_prefix(&html.description, None);
+        let var_type = read_html_strip_prefix(&html.var_type, Some("Type:"));
+        let default = read_html_strip_prefix(&html.default, Some("Default:"));
+        let example = read_html_strip_prefix(&html.example, Some("Example:"));
+        let declared_by = read_html_strip_prefix(&html.declared_by, Some("Declared By:"));
         Self {
             name,
             description,
@@ -155,6 +142,16 @@ impl From<OptRawHTML> for OptText {
             declared_by_urls: html.declared_by_urls,
         }
     }
+}
+
+fn read_html_strip_prefix(s: &str, pre: Option<&str>) -> String {
+    let dec = TrivialDecorator::new();
+    let pre = pre.unwrap_or("");
+    from_read_with_decorator(s.as_bytes(), 10000, dec)
+        .unwrap_or(s.to_string())
+        .trim_start_matches(pre)
+        .trim()
+        .to_string()
 }
 
 impl From<OptData<'_>> for OptText {
