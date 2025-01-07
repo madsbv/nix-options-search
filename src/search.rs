@@ -364,7 +364,12 @@ mod tests {
     fn test_doc_urls_trimmed() {
         // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
         let s = Source::NixDarwin;
-        let urls = s.get_data().into_iter().map(|opt| s.url_to(&opt));
+        let urls = s
+            .get_data()
+            .expect("Can get data")
+            .opts
+            .into_iter()
+            .map(|opt| s.url_to(&opt));
         for url in urls {
             assert_eq!(url, url.trim());
             assert_ne!(url.chars().last(), Some('\n'));
@@ -375,5 +380,20 @@ mod tests {
     fn test_empty_search() {
         let mut f = Finder::new(Source::NixDarwin);
         assert_eq!(f.find_blocking("asdfasdfasdf", Some(5)).expect("find blocking should not fail").len(), 0, "Either empty searches crash or a search term that was thought to yield no results now does.");
+    }
+
+    #[test]
+    fn test_get_version() {
+        for s in [
+            Source::NixDarwin,
+            Source::NixOS,
+            Source::NixOSUnstable,
+            Source::HomeManager,
+            Source::HomeManagerNixDarwin,
+            Source::HomeManagerNixOS,
+        ] {
+            let version = s.get_version().expect("Can get version");
+            assert!(version.contains("Version"), "Version string: {version}");
+        }
     }
 }
