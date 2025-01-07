@@ -30,6 +30,16 @@ pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> 
         .collect())
 }
 
+pub fn parse_version<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
+    let p = dom.parser();
+    let versions = dom
+        .query_selector(".subtitle")?
+        .filter_map(|nh| nh.get(p))
+        .map(|n| n.inner_html(p))
+        .collect::<Vec<_>>();
+    Some(versions.join("|"))
+}
+
 #[derive(Clone, Debug)]
 pub struct OptData<'a> {
     name: Vec<HTMLTag<'a>>,
@@ -54,7 +64,7 @@ impl OptData<'_> {
 
     /// NOTE: Options can be declared in multiple places, hence returning a Vec here.
     /// They can also be declared in *no* places, e.g. `Background` for Nix-Darwin.
-    fn extract_urls_from_section<'a>(
+    fn extract_urls<'a>(
         &'a self,
         section: &'a [HTMLTag],
         class: Option<&str>,
@@ -78,7 +88,7 @@ impl OptData<'_> {
     }
 
     fn declared_by_urls(&self) -> Vec<String> {
-        self.extract_urls_from_section(&self.declared_by, Some("filename"))
+        self.extract_urls(&self.declared_by, Some("filename"))
             .into_iter()
             .map(|c| c.to_string())
             .collect()

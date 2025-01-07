@@ -1,4 +1,4 @@
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{eyre, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use std::fmt;
@@ -9,7 +9,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use crate::logging::data_dir;
-use crate::opt_data::{parse_options, OptText};
+use crate::opt_data::{parse_options, parse_version, OptText};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InputStatus {
@@ -20,6 +20,7 @@ pub enum InputStatus {
 
 pub struct Finder {
     source: Source,
+    version: String,
     // TODO: Can we optimize memory usage by making this take Cows?
     // If ListableWidgets receive list geometry as input, switch this to storing precomputed ListableOptWidgets instead
     searcher: Nucleo<OptText>,
@@ -34,9 +35,10 @@ impl Finder {
         let notify = Arc::new(move || {
             results_sender.store(true, Ordering::Relaxed);
         });
-        let (searcher, handle) = new_searcher(Box::new(move || source.opt_text()), notify);
+        let (searcher, handle) = new_searcher(Box::new(move || source.get_data()), notify);
         Finder {
             source,
+            version: source.get_version().unwrap_or_default(),
             searcher,
             injection_handle: Some(handle),
             results_waiting,
@@ -49,6 +51,10 @@ impl Finder {
 
     pub fn url(&self) -> &'static str {
         self.source.url()
+    }
+
+    pub fn version(&self) -> &str {
+        &self.version
     }
 
     pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
@@ -125,6 +131,17 @@ impl Source {
         }
     }
 
+    fn version_url(self) -> &'static str {
+        match self {
+            Self::NixDarwin => self.url(),
+            Self::NixOS => "https://nixos.org/manual/nixos/stable/",
+            Self::NixOSUnstable => "https://nixos.org/manual/nixos/unstable/",
+            Self::HomeManager | Self::HomeManagerNixOS | Self::HomeManagerNixDarwin => {
+                "https://nix-community.github.io/home-manager/"
+            }
+        }
+    }
+
     fn url_to(self, opt: &OptText) -> String {
         let tag = match self {
             Self::NixDarwin | Self::NixOS | Self::NixOSUnstable | Self::HomeManager => "opt",
@@ -171,7 +188,19 @@ impl Source {
         Ok(age < Source::CACHE_MAX_AGE)
     }
 
-    fn opt_text_from_web(self) -> Result<Vec<OptText>> {
+    fn get_version(self) -> Result<String> {
+        let res = ureq::get(self.version_url()).call()?;
+        let mut html = String::new();
+        res.into_reader().read_to_string(&mut html)?;
+        let dom = tl::parse(&html, tl::ParserOptions::default())?;
+
+        parse_version(&dom).ok_or(eyre!(
+            "Parsing version from html failed. Length of html document: {}",
+            html.len()
+        ))
+    }
+
+    fn get_online_data(self) -> Result<Vec<OptText>> {
         let res = ureq::get(self.url()).call()?;
         let mut html = String::new();
         res.into_reader().read_to_string(&mut html)?;
@@ -182,7 +211,7 @@ impl Source {
 
     // We could return a Result or Option to account for possible failure modes, but currently I'm not sure what I'd use it for.
     // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
-    fn opt_text(self) -> Vec<OptText> {
+    fn get_data(self) -> Vec<OptText> {
         let cache_age = self.cache_is_current();
         if let Ok(true) = cache_age {
             if let Ok(opts) = self.load_cache() {
@@ -191,7 +220,7 @@ impl Source {
             }
         }
         // Cache is outdated or there was a reading error
-        if let Ok(opts) = self.opt_text_from_web() {
+        if let Ok(opts) = self.get_online_data() {
             // We can get the opts from the web and update the cache
             let _ = self.store_cache(&opts);
             return opts;
@@ -261,7 +290,7 @@ mod tests {
     #[test]
     fn test_cache_roundtrip() {
         let s = Source::NixDarwin;
-        let opts = s.opt_text_from_web().expect(
+        let opts = s.get_online_data().expect(
             "Can get and parse options for {s} from the web (tests require network connection)",
         );
 
@@ -314,7 +343,7 @@ mod tests {
     fn test_doc_urls_trimmed() {
         // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
         let s = Source::NixDarwin;
-        let urls = s.opt_text().into_iter().map(|opt| s.url_to(&opt));
+        let urls = s.get_data().into_iter().map(|opt| s.url_to(&opt));
         for url in urls {
             assert_eq!(url, url.trim());
             assert_ne!(url.chars().last(), Some('\n'));

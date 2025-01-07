@@ -205,6 +205,7 @@ impl App {
 
     fn render_results(&mut self, area: Rect, buf: &mut Buffer) {
         let title_text = format!(" {} ", self.pages[self.active_page].name());
+        let version = format!(" {} ", self.pages[self.active_page].version());
         let instructions = Line::from(vec![
             " Navigation ".into(),
             "Arrows/C-[hjkl], ".yellow().bold(),
@@ -218,6 +219,7 @@ impl App {
 
         let results_block = Block::default()
             .title_top(Line::from(title_text).bold().centered())
+            .title_top(Line::from(version).right_aligned())
             .title_bottom(instructions.centered())
             .borders(Borders::ALL)
             .border_set(border::THICK)
