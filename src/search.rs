@@ -1,10 +1,11 @@
+use bitcode::{Decode, Encode};
 use color_eyre::eyre::{eyre, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -20,9 +21,7 @@ pub enum InputStatus {
 
 pub struct Finder {
     source: Source,
-    version: String,
-    // TODO: Can we optimize memory usage by making this take Cows?
-    // If ListableWidgets receive list geometry as input, switch this to storing precomputed ListableOptWidgets instead
+    version: Arc<OnceLock<String>>,
     searcher: Nucleo<OptText>,
     injection_handle: Option<JoinHandle<()>>,
     pub(crate) results_waiting: Arc<AtomicBool>,
@@ -35,10 +34,12 @@ impl Finder {
         let notify = Arc::new(move || {
             results_sender.store(true, Ordering::Relaxed);
         });
-        let (searcher, handle) = new_searcher(Box::new(move || source.get_data()), notify);
+        let version = Arc::new(OnceLock::new());
+        let (searcher, handle) =
+            new_searcher(Box::new(move || source.get_data()), version.clone(), notify);
         Finder {
             source,
-            version: source.get_version().unwrap_or_default(),
+            version,
             searcher,
             injection_handle: Some(handle),
             results_waiting,
@@ -54,7 +55,9 @@ impl Finder {
     }
 
     pub fn version(&self) -> &str {
-        &self.version
+        self.version
+            .get()
+            .map_or("Version number not found (yet)", |s| s)
     }
 
     pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
@@ -101,7 +104,7 @@ impl Finder {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Encode, Decode, PartialEq)]
 pub enum Source {
     NixDarwin,
     NixOS,
@@ -157,26 +160,26 @@ impl Source {
         path
     }
 
-    fn store_cache_to(opts: &[OptText], path: &PathBuf) -> Result<()> {
-        let bitdata = bitcode::encode(opts);
+    fn store_cache_to(data: &SourceData, path: &PathBuf) -> Result<()> {
+        let bitdata = bitcode::encode(data);
         let zstddata =
             zstd::stream::encode_all(bitdata.as_slice(), Source::ZSTD_COMPRESSION_LEVEL)?;
         std::fs::write(path, zstddata)?;
         Ok(())
     }
 
-    fn store_cache(self, opts: &[OptText]) -> Result<()> {
-        Source::store_cache_to(opts, &self.cache_path())
+    fn store_cache(self, data: &SourceData) -> Result<()> {
+        Source::store_cache_to(data, &self.cache_path())
     }
 
-    fn load_cache_from(path: &PathBuf) -> Result<Vec<OptText>> {
+    fn load_cache_from(path: &PathBuf) -> Result<SourceData> {
         let zstddata = std::fs::read(path)?;
         let bitdata = zstd::stream::decode_all(zstddata.as_slice())?;
-        let opts = bitcode::decode(&bitdata)?;
-        Ok(opts)
+        let data = bitcode::decode(&bitdata)?;
+        Ok(data)
     }
 
-    fn load_cache(self) -> Result<Vec<OptText>> {
+    fn load_cache(self) -> Result<SourceData> {
         Source::load_cache_from(&self.cache_path())
     }
 
@@ -200,43 +203,46 @@ impl Source {
         ))
     }
 
-    fn get_online_data(self) -> Result<Vec<OptText>> {
+    fn get_online_data(self) -> Result<SourceData> {
         let res = ureq::get(self.url()).call()?;
         let mut html = String::new();
         res.into_reader().read_to_string(&mut html)?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
 
-        parse_options(&dom).map(|ok| ok.into_iter().map(std::convert::Into::into).collect())
+        Ok(SourceData {
+            source: self,
+            opts: parse_options(&dom)
+                .map(|ok| ok.into_iter().map(std::convert::Into::into).collect())?,
+            version: self.get_version()?,
+        })
     }
 
     // We could return a Result or Option to account for possible failure modes, but currently I'm not sure what I'd use it for.
     // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
-    fn get_data(self) -> Vec<OptText> {
-        let cache_age = self.cache_is_current();
-        if let Ok(true) = cache_age {
-            if let Ok(opts) = self.load_cache() {
+    fn get_data(self) -> Result<SourceData> {
+        let cache_validity = self.cache_is_current();
+        if let Ok(true) = cache_validity {
+            if let Ok(data) = self.load_cache() {
                 // Happy path: Just use existing cache
-                return opts;
+                return Ok(data);
             }
         }
         // Cache is outdated or there was a reading error
-        if let Ok(opts) = self.get_online_data() {
+        if let Ok(data) = self.get_online_data() {
             // We can get the opts from the web and update the cache
-            let _ = self.store_cache(&opts);
-            return opts;
+            let _ = self.store_cache(&data);
+            return Ok(data);
         }
         // Cache is outdated or broken and we're effectively offline
-        if let Ok(false) = cache_age {
+        if let Ok(false) = cache_validity {
             // If the cache was just outdated, returning the outdated cache is better than nothing
             // If loading the cache fails, other Sources might still work, so avoid crashing the program by unwrapping.
-            if let Ok(opts) = self.load_cache() {
-                return opts;
+            if let Ok(data) = self.load_cache() {
+                return Ok(data);
             }
         }
-        // We have nothing useful to return
-        // TODO: Push out an "error" OptText for the user to see?
         // TODO: Embed precomputed cache at compile time to use as a last ditch fallback?
-        vec![]
+        Err(eyre!("Failed to get data for {self}"))
     }
 }
 
@@ -254,9 +260,17 @@ impl fmt::Display for Source {
     }
 }
 
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+struct SourceData {
+    source: Source,
+    opts: Vec<OptText>,
+    version: String,
+}
+
 /// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
 fn new_searcher(
-    opts_fn: Box<dyn Fn() -> Vec<OptText> + Send>,
+    data_fn: Box<dyn Fn() -> Result<SourceData> + Send>,
+    version: Arc<OnceLock<String>>,
     notify: Arc<dyn Fn() + Sync + Send>,
 ) -> (Nucleo<OptText>, JoinHandle<()>) {
     let mut nuc = Nucleo::<OptText>::new(
@@ -269,8 +283,15 @@ fn new_searcher(
     let inj = nuc.injector();
 
     let handle = std::thread::spawn(move || {
-        let data = opts_fn();
-        for d in data {
+        let opts = if let Ok(data) = data_fn() {
+            version.get_or_init(|| data.version);
+            data.opts
+        } else {
+            version.get_or_init(|| "Failed to get data".to_string());
+            vec![]
+        };
+
+        for d in opts {
             // TODO: Add the right data to search string
             // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
             // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
