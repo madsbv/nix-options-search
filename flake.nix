@@ -12,33 +12,32 @@
 
   outputs =
     inputs@{ nixpkgs, flake-utils, ... }:
-    flake-utils.lib.eachSystem
-      [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
-      ]
-      (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          gitignoreSrc = pkgs.callPackage inputs.gitignore { };
-        in
-        {
-          packages.nox = pkgs.callPackage ./default.nix { inherit gitignoreSrc pkgs; };
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        gitignoreSrc = pkgs.callPackage inputs.gitignore { };
+      in
+      {
+        packages = rec {
+          nox = pkgs.callPackage ./default.nix { inherit gitignoreSrc pkgs; };
+          default = nox;
+        };
 
-          packages.default = import ./default.nix { inherit gitignoreSrc pkgs; };
+        apps = rec {
+          nox = flake-utils.lib.mkApp { drv = import ./default.nix { inherit gitignoreSrc pkgs; }; };
+          default = nox;
+        };
 
-          devShells.${system}.default = pkgs.mkShell {
-            CARGO_INSTALL_ROOT = "${toString ./.}/.cargo";
+        devShells.default = pkgs.mkShell {
+          CARGO_INSTALL_ROOT = "${toString ./.}/.cargo";
 
-            buildInputs = with pkgs; [
-              cargo
-              rustc
-              git
-            ];
-          };
-        }
-      );
+          buildInputs = with pkgs; [
+            cargo
+            rustc
+            git
+          ];
+        };
+      }
+    );
 }
