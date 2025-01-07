@@ -99,6 +99,7 @@ impl Finder {
 pub enum Source {
     NixDarwin,
     NixOS,
+    NixOSUnstable,
     HomeManager,
     HomeManagerNixOS,
     HomeManagerNixDarwin,
@@ -113,6 +114,7 @@ impl Source {
         match self {
             Self::NixDarwin => "https://daiderd.com/nix-darwin/manual/index.html",
             Self::NixOS => "https://nixos.org/manual/nixos/stable/options",
+            Self::NixOSUnstable => "https://nixos.org/manual/nixos/unstable/options",
             Self::HomeManager => "https://nix-community.github.io/home-manager/options.xhtml",
             Self::HomeManagerNixOS => {
                 "https://nix-community.github.io/home-manager/nixos-options.xhtml"
@@ -125,7 +127,7 @@ impl Source {
 
     fn url_to(self, opt: &OptText) -> String {
         let tag = match self {
-            Self::NixDarwin | Self::NixOS | Self::HomeManager => "opt",
+            Self::NixDarwin | Self::NixOS | Self::NixOSUnstable | Self::HomeManager => "opt",
             Self::HomeManagerNixOS => "nixos-opt",
             Self::HomeManagerNixDarwin => "nix-darwin-opt",
         };
@@ -214,6 +216,7 @@ impl fmt::Display for Source {
         let s = match self {
             Self::NixDarwin => "Nix-Darwin",
             Self::NixOS => "NixOS",
+            Self::NixOSUnstable => "NixOS Unstable",
             Self::HomeManager => "Home Manager",
             Self::HomeManagerNixOS => "Home Manager NixOS",
             Self::HomeManagerNixDarwin => "Home Manager Nix-Darwin",

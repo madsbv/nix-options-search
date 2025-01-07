@@ -34,6 +34,7 @@ impl App {
             pages: vec![
                 Finder::new(Source::NixDarwin),
                 Finder::new(Source::NixOS),
+                Finder::new(Source::NixOSUnstable),
                 Finder::new(Source::HomeManager),
                 Finder::new(Source::HomeManagerNixOS),
                 Finder::new(Source::HomeManagerNixDarwin),
