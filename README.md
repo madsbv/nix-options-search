@@ -14,6 +14,29 @@ A simple command-line tool to look up options for configuring nix-darwin, nixOS,
   [this](https://www.rust-lang.org/tools/install) guide.
 * run `cargo install nix-options-search`
 
+### Nix flakes
+
+Run nox using nix with flakes enabled with `nix run github:madsbv/nix-options-search`.
+
+To add nox to a nixOS, nix-darwin or home-manager configuration using flakes, add this repository as a flake input and add `inputs.nox.packages.${system}.default` to your package list. For example, for a nixOS system with hostname `${hostname}` and system type `${system}` (one of `x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin`):
+``` nix
+inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nox = {
+        url = "github:madsbv/nix-options-search";
+        inputs.nixpkgs.follows = "nixpkgs";
+    };
+};
+outputs = inputs: {
+    nixosConfigurations.${hostname} = nixpkgs.lib.nixosSystem {
+        system = ${system}
+        modules = [{ 
+                environment.systemPackages = [ inputs.nox.packages.${system}.default ];
+        }];
+    };
+};
+```
+
 ## License
 
 Licensed under either of
