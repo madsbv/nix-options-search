@@ -331,6 +331,7 @@ mod tests {
 
     // Tests against internet-acquired HTML if possible
     #[test]
+    #[cfg(feature = "online-tests")]
     fn search_each_tab() {
         let mut app = App::new();
         // Make sure we start at the first tab

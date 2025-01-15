@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2025-01-15
+- Gate tests which depend on an internet connection behind a (non-default) feature flag. This enables nox to be added as a package in a nixos config, which by default does not allow internet access while building.
+
 ## [0.3.1] - 2025-01-07
 - Add a tab for NixOS Unstable channel options
 - Display the version of each source (e.g. NixOS 24.11 for the current stable branch)

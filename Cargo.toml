@@ -1,6 +1,6 @@
 [package]
 name = "nix-options-search"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "A tool to fuzzy find nix-darwin and nixOS configuration options"
 keywords = ["cli", "utility", "tui", "nix"]
@@ -15,11 +15,14 @@ include = ["src/*", "data/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 name = "nox"
 path = "src/main.rs"
 
+[features]
+online-tests = []
+
 [dependencies]
 bitcode = "0.6.0"
 color-eyre = "0.6.3"
 crossterm = "0.28.1"
-directories = "5.0.1"
+directories = "6.0.0"
 html2text = "0.13.6"
 nucleo = "0.5.0"
 open = "5.3.2"

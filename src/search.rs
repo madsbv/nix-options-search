@@ -306,9 +306,12 @@ fn new_searcher(
 mod tests {
 
     use super::*;
+
+    #[cfg(feature = "online-tests")]
     use tempfile::tempdir;
 
     #[test]
+    #[cfg(feature = "online-tests")]
     fn test_cache_roundtrip() {
         let s = Source::NixDarwin;
         let opts = s.get_online_data().expect(
@@ -329,6 +332,7 @@ mod tests {
 
     /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
     #[test]
+    #[cfg(feature = "online-tests")]
     fn test_finders() {
         let mut handles = vec![];
         for s in [
@@ -349,6 +353,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "online-tests")]
     fn finder(source: Source) {
         let mut f = Finder::new(source);
         assert_ne!(
@@ -361,6 +366,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "online-tests")]
     fn test_doc_urls_trimmed() {
         // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
         let s = Source::NixDarwin;
@@ -383,6 +389,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "online-tests")]
     fn test_get_version() {
         for s in [
             Source::NixDarwin,
