@@ -41,10 +41,3 @@ lto = true
 codegen-units = 1
 strip = true
 
-[profile.dev]
-opt-level = 2
-lto = "thin"
-
-[profile.test]
-opt-level = 2
-lto = "thin"

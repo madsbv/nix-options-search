@@ -44,3 +44,14 @@ check: check-git lint
 alias ca := check-all
 check-all *args: check-git lint
 	nix flake check --all-systems {{args}}
+
+alias w := watch
+watch *args:
+    cargo watch -B 1 -w src -w templates -w Cargo.toml -x {{args}}
+
+alias wt := watch-test
+alias wr := watch-run
+watch-test *args:
+    just watch test {{args}}
+watch-run *args:
+    just watch run {{args}}
