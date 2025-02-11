@@ -9,7 +9,7 @@ use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crate::logging::data_dir;
+use crate::logging::cache_dir;
 use crate::opt_data::{parse_options, parse_version, OptText};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -155,7 +155,7 @@ impl Source {
     }
 
     fn cache_path(self) -> PathBuf {
-        data_dir().clone().join(format!("{self}.zst"))
+        cache_dir().clone().join(format!("{self}.zst"))
     }
 
     fn store_cache_to(data: &SourceData, path: &PathBuf) -> Result<()> {
