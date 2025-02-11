@@ -149,16 +149,21 @@ impl App {
             }
             (KeyCode::Char('o'), KeyModifiers::CONTROL) => {
                 let source = &self.pages[self.active_page];
-                if let Some(ref o) = self.selected_item {
-                    open_url(&source.url_to(o));
+                if let Some(ref item) = self.selected_item {
+                    open_url(&source.url_to(item));
                 } else {
                     open_url(source.url());
                 };
             }
             (KeyCode::Enter, _) => {
-                if let Some(ref o) = self.selected_item {
-                    for u in &o.declared_by_urls {
-                        open_url(u);
+                if let Some(ref item) = self.selected_item {
+                    for u in &item.declared_by_urls {
+                        if self.pages[self.active_page].source() == Source::NixOSUnstable {
+                            // XXX 250211: For some reason, the documentation of nixos-unstable links to the "release-25.05" branch of the nixpkgs repository, but that branch does not yet exist, so we manually override to get the nixos-unstable branch instead.
+                            open_url(&u.replace("release-25.05", "nixos-unstable"));
+                        } else {
+                            open_url(u);
+                        }
                     }
                 }
                 // TODO: Default behaviour if there's no url? Pop up an error message somehow?

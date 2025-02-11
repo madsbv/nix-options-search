@@ -85,6 +85,10 @@ impl Finder {
         }
     }
 
+    pub fn source(&self) -> Source {
+        self.source
+    }
+
     // For testing purposes
     pub fn find_blocking(
         &mut self,
