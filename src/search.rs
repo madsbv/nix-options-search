@@ -155,9 +155,7 @@ impl Source {
     }
 
     fn cache_path(self) -> PathBuf {
-        let mut path = data_dir().clone();
-        path.push(format!("{self}.zst"));
-        path
+        data_dir().clone().join(format!("{self}.zst"))
     }
 
     fn store_cache_to(data: &SourceData, path: &PathBuf) -> Result<()> {
@@ -192,9 +190,10 @@ impl Source {
     }
 
     fn get_version(self) -> Result<String> {
-        let res = ureq::get(self.version_url()).call()?;
-        let mut html = String::new();
-        res.into_reader().read_to_string(&mut html)?;
+        let html = ureq::get(self.version_url())
+            .call()?
+            .body_mut()
+            .read_to_string()?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
 
         parse_version(&dom).ok_or(eyre!(
@@ -204,9 +203,14 @@ impl Source {
     }
 
     fn get_online_data(self) -> Result<SourceData> {
-        let res = ureq::get(self.url()).call()?;
-        let mut html = String::new();
-        res.into_reader().read_to_string(&mut html)?;
+        let html = ureq::get(self.url())
+            .call()?
+            .body_mut()
+            .with_config()
+            // 30 MB reading limit.
+            // The default is 10MB, but the nixos docs are 20-21MB, at least uncompressed.
+            .limit(30 * 1024 * 1024)
+            .read_to_string()?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
 
         Ok(SourceData {
