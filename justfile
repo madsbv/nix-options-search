@@ -55,3 +55,7 @@ watch-test *args:
     just watch test {{args}}
 watch-run *args:
     just watch run {{args}}
+
+# May require first bringing ttyd and ffmpeg in via nix shell
+create-vhs-gif:
+    nix run nixpkgs#vhs docs/nox.tape
