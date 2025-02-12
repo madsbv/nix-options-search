@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2025-02-12
+- Add dependency injection mechanism to enable testing specifically online data requests vs cached data.
+- Documentation updates
+- Fix links to nixos-unstable sources. Their docs started linking to the 25.05 branch of the nixpkgs repo, which does not exist, so redirect to the nixos-unstable branch.
+
 ## [0.3.2] - 2025-01-15
 - Gate tests which depend on an internet connection behind a (non-default) feature flag. This enables nox to be added as a package in a nixos config, which by default does not allow internet access while building.
 
