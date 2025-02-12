@@ -4,7 +4,8 @@
 [![CI](https://github.com/madsbv/nix-options-search/workflows/CI/badge.svg)](https://github.com/madsbv/nix-options-search/actions)
 
 A fast and convenient command-line tool to look up options for configuring nix-darwin, nixOS, and home-manager quickly, with fuzzy finding.
-![Made with VHS](https://vhs.charm.sh/vhs-5RMWhuvxdscr28T7702mKh.gif)
+
+![Made with VHS](https://vhs.charm.sh/vhs-5zsL56XNOM7Map2ixPdu4w.gif)
 
 ## Motivation
 

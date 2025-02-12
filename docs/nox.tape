@@ -15,20 +15,24 @@ Enter
 
 Show
 Type "nox"
-Sleep 1s
+Sleep 750ms
 Enter
-Sleep 2s
+Sleep 1.5s
 Type "ssh ho"
-Sleep 2s
+Sleep 1.5s
 Ctrl+L
-Sleep 1s
+Sleep 750ms
 Ctrl+L
-Sleep 1s
+Sleep 750ms
 Backspace 6
-Sleep 1s
+Sleep 750ms
 Type "firefo"
-Sleep 1s
-Ctrl+K
+Sleep 750ms
+Ctrl+J
+Sleep 200ms
+Ctrl+J
+Sleep 200ms
+Ctrl+J
 Sleep 200ms
 Ctrl+K
 Sleep 200ms
@@ -39,38 +43,22 @@ Sleep 200ms
 Ctrl+K
 Sleep 200ms
 Ctrl+K
-Sleep 200ms
-Ctrl+K
-Sleep 200ms
-Ctrl+K
-Sleep 200ms
-Ctrl+K
-Sleep 200ms
-Ctrl+K
-Sleep 1s
+Sleep 750ms
 Ctrl+H
 Sleep 500ms
 Ctrl+H
 Backspace 6
+Sleep 500ms
+Ctrl+L
+Sleep 500ms
+Ctrl+L
+Sleep 500ms
+Ctrl+L
+Sleep 500ms
+Ctrl+L
+Sleep 500ms
+Ctrl+L
+Sleep 500ms
+Ctrl+L
 Sleep 1s
-Ctrl+L
-Sleep 500ms
-Ctrl+L
-Sleep 500ms
-Ctrl+L
-Sleep 500ms
-Ctrl+L
-Sleep 500ms
-Ctrl+L
-Sleep 500ms
-Ctrl+L
-Sleep 500ms
-Ctrl+H
-Sleep 500ms
-Ctrl+H
-Sleep 1s
-Type "mu"
-Sleep 2s
-Backspace 2
 Escape
-Sleep 1s
