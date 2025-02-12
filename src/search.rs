@@ -29,14 +29,23 @@ pub struct Finder {
 
 impl Finder {
     pub fn new(source: Source) -> Self {
+        Self::new_with_data_fn(source, None)
+    }
+
+    // Allows for overriding the data source, namely for tests that specifically want to acquire data online or from cache.
+    fn new_with_data_fn(
+        source: Source,
+        data_fn: Option<Box<dyn Fn() -> Result<SourceData> + Send>>,
+    ) -> Self {
+        let data_fn = data_fn.unwrap_or(Box::new(move || source.get_data()));
+
         let results_waiting = Arc::new(AtomicBool::new(false));
         let results_sender = Arc::clone(&results_waiting);
         let notify = Arc::new(move || {
             results_sender.store(true, Ordering::Relaxed);
         });
         let version = Arc::new(OnceLock::new());
-        let (searcher, handle) =
-            new_searcher(Box::new(move || source.get_data()), version.clone(), notify);
+        let (searcher, handle) = new_searcher(data_fn, version.clone(), notify);
         Finder {
             source,
             version,
@@ -108,7 +117,42 @@ impl Finder {
     }
 }
 
-#[derive(Debug, Copy, Clone, Encode, Decode, PartialEq)]
+/// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
+fn new_searcher(
+    data_fn: Box<dyn Fn() -> Result<SourceData> + Send>,
+    version: Arc<OnceLock<String>>,
+    notify: Arc<dyn Fn() + Sync + Send>,
+) -> (Nucleo<OptText>, JoinHandle<()>) {
+    let mut nuc = Nucleo::<OptText>::new(
+        Config::DEFAULT,
+        notify,
+        // NOTE: There might be room for some optimization in thread allocation here, either by capping the number of threads for each Nucleo instance, or using the multi-column capabilities to merge the instances together.
+        None,
+        1,
+    );
+    let inj = nuc.injector();
+
+    let handle = std::thread::spawn(move || {
+        let opts = if let Ok(data) = data_fn() {
+            version.get_or_init(|| data.version);
+            data.opts
+        } else {
+            version.get_or_init(|| "Failed to get data".to_string());
+            vec![]
+        };
+
+        for d in opts {
+            // TODO: Add the right data to search string
+            // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
+            // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
+            inj.push(d, |data, col| col[0] = data.name.clone().into());
+        }
+    });
+    nuc.tick(0);
+    (nuc, handle)
+}
+
+#[derive(Debug, Copy, Clone, Encode, Decode, PartialEq, strum::VariantArray)]
 pub enum Source {
     NixDarwin,
     NixOS,
@@ -198,6 +242,7 @@ impl Source {
             .call()?
             .body_mut()
             .read_to_string()?;
+
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
 
         parse_version(&dom).ok_or(eyre!(
@@ -275,41 +320,6 @@ struct SourceData {
     version: String,
 }
 
-/// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
-fn new_searcher(
-    data_fn: Box<dyn Fn() -> Result<SourceData> + Send>,
-    version: Arc<OnceLock<String>>,
-    notify: Arc<dyn Fn() + Sync + Send>,
-) -> (Nucleo<OptText>, JoinHandle<()>) {
-    let mut nuc = Nucleo::<OptText>::new(
-        Config::DEFAULT,
-        notify,
-        // NOTE: There might be room for some optimization in thread allocation here, either by capping the number of threads for each Nucleo instance, or using the multi-column capabilities to merge the instances together.
-        None,
-        1,
-    );
-    let inj = nuc.injector();
-
-    let handle = std::thread::spawn(move || {
-        let opts = if let Ok(data) = data_fn() {
-            version.get_or_init(|| data.version);
-            data.opts
-        } else {
-            version.get_or_init(|| "Failed to get data".to_string());
-            vec![]
-        };
-
-        for d in opts {
-            // TODO: Add the right data to search string
-            // NOTE: First argument is the "data" part of matched items; use it to store the data you want to get out at the end (e.g. the entire object you're searching for, or an index to it).
-            // The second argument is a closure that outputs the text that should be displayed as the user, and which Nucleo matches a given pattern against. For us, that could be the contents of the various fields of OptData in different columns
-            inj.push(d, |data, col| col[0] = data.name.clone().into());
-        }
-    });
-    nuc.tick(0);
-    (nuc, handle)
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -322,9 +332,11 @@ mod tests {
     #[cfg(feature = "online-tests")]
     fn test_cache_roundtrip() {
         let s = Source::NixDarwin;
-        let opts = s.get_online_data().expect(
-            "Can get and parse options for {s} from the web (tests require network connection)",
-        );
+        let Ok(opts) = s.get_online_data() else {
+            panic!(
+                "Can get and parse options for {s} from the web (tests require network connection)"
+            )
+        };
 
         let tmpdir = tempdir().expect("Can create temporary directory");
         let path = tmpdir.path().join(PathBuf::from(format!("{s}.zst")));
@@ -338,7 +350,7 @@ mod tests {
         assert_eq!(opts, roundtrip_opts);
     }
 
-    /// Check that we can parse the valid data, generate a matcher, and that the cached data actually yields roughly the expected number of items.
+    /// Check that we can get, parse and query all online data sources with at least some results.
     #[test]
     #[cfg(feature = "online-tests")]
     fn test_finders() {
@@ -350,7 +362,7 @@ mod tests {
             Source::HomeManagerNixOS,
             Source::HomeManagerNixDarwin,
         ] {
-            handles.push((s, std::thread::spawn(move || finder(s))));
+            handles.push((s, std::thread::spawn(move || test_finder(s))));
         }
         for h in handles {
             assert!(
@@ -362,8 +374,8 @@ mod tests {
     }
 
     #[cfg(feature = "online-tests")]
-    fn finder(source: Source) {
-        let mut f = Finder::new(source);
+    fn test_finder(source: Source) {
+        let mut f = Finder::new_with_data_fn(source, Some(Box::new(move || source.get_data())));
         assert_ne!(
             f.find_blocking("s", Some(5))
                 .expect("find_blocking should not fail")
@@ -399,14 +411,9 @@ mod tests {
     #[test]
     #[cfg(feature = "online-tests")]
     fn test_get_version() {
-        for s in [
-            Source::NixDarwin,
-            Source::NixOS,
-            Source::NixOSUnstable,
-            Source::HomeManager,
-            Source::HomeManagerNixDarwin,
-            Source::HomeManagerNixOS,
-        ] {
+        use strum::VariantArray;
+
+        for s in Source::VARIANTS {
             let version = s.get_version().expect("Can get version");
             assert!(version.contains("Version"), "Version string: {version}");
         }
