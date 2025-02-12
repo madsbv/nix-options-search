@@ -1,18 +1,35 @@
-# nix-options-search
+# Nox
 
 [![Crates.io](https://img.shields.io/crates/v/nix-options-search.svg)](https://crates.io/crates/nix-options-search)
 [![CI](https://github.com/madsbv/nix-options-search/workflows/CI/badge.svg)](https://github.com/madsbv/nix-options-search/actions)
 
-A simple command-line tool to look up options for configuring nix-darwin, nixOS, and home-manager quickly, with fuzzy finding.
+A fast and convenient command-line tool to look up options for configuring nix-darwin, nixOS, and home-manager quickly, with fuzzy finding.
 <img width="1752" alt="TUI" src="https://github.com/madsbv/nix-options-search/assets/2766060/615ea8ed-8f70-41d3-abb9-9d8132c5757d">
 
-## Installation
+## Motivation
 
-### Cargo
+Setting up any part of a system using nixos, nix-darwin or home-manager involves a significant amount of time spent looking through the docs to figure out the names of all the relevant options and what kind of input they expect. However, the only convenient first-party methods for accessing the docs are through man pages or corresponding static webpages (like the [nixos manual](https://nixos.org/manual/nixos/stable/options); ~20MB of html!). This means you have to either scroll through a huge alphabetized list, or be able to search for an exact substring of the option name you want.
 
-* Install the rust toolchain in order to have cargo installed by following
-  [this](https://www.rust-lang.org/tools/install) guide.
-* run `cargo install nix-options-search`
+Nox is built with fuzzy searching so you don't have to know exactly what you're looking for to find it. It is also fast: After the first run, it uses an internal cache to provide basically instantaneous startup, and the search results likewise update instantly on every keystroke.
+
+
+## Quick start
+
+### Install using the Rust toolchain/Cargo
+
+``` sh
+cargo install nix-options-search
+```
+
+If you don't already have the Rust toolchain installed, get it from your favorite package manager, or following the [official rust-lang guide](https://www.rust-lang.org/tools/install).
+
+### Run 
+
+``` sh
+nox
+```
+
+## Other installation methods
 
 ### Nix flakes
 
@@ -37,6 +54,56 @@ outputs = inputs: {
 };
 ```
 
+### Prebuilt binaries
+See [Releases](https://github.com/madsbv/nix-options-search/releases).
+
+## Usage
+Nox works mainly through fuzzy searching on option names. Navigate to the tab you want (nix-darwin, nixos, home-manager etc.) with arrows or <ctrl+h> or <ctrl+l>, then start typing!
+
+You can scroll through the results list with <up>/<down>/<ctrl+k>/<ctrl+j>. With an item highlighted, <ctrl+o> opens the file that defines that option in the source repository, while <enter> opens the online documentation page at the corresponding entry.
+
+The first startup might take a while; the nixos documentation alone is ~20MB of data that has to be retrieved. After that however, the data is cached locally and only refreshed occasionally.
+
+## Contributing
+
+### Clone the repo
+
+```sh
+git clone https://github.com/madsbv/nix-options-search
+cd nix-options-search
+```
+
+### Build the project
+
+```sh
+cargo build
+```
+
+### Run the project
+
+```sh
+cargo run
+```
+
+### Run the tests
+
+```sh
+cargo test
+```
+
+Some tests are gated behind the `online-test` feature flag since they require a functioning network connection to pass, which is not necessarily available in the nix sandbox.
+
+Run all tests with
+
+``` sh
+cargo test --features online-tests
+```
+
+### Submit a pull request
+
+If you'd like to contribute, please fork the repository and open a pull request to the `main` branch.
+
+
 ## License
 
 Licensed under either of
@@ -48,7 +115,7 @@ Licensed under either of
 
 at your option.
 
-## Contribution
+### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
