@@ -35,7 +35,7 @@ tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["ansi", "env-filter"] }
 tui-widget-list = "0.13.2"
 ureq = "3.0.5"
-zstd = "0.13.2"
+zstd = "0.13.3"
 
 [profile.release]
 lto = true
