@@ -169,7 +169,7 @@ impl Source {
 
     fn url(self) -> &'static str {
         match self {
-            Self::NixDarwin => "https://daiderd.com/nix-darwin/manual/index.html",
+            Self::NixDarwin => "https://nix-darwin.github.io/nix-darwin/manual/index.html",
             Self::NixOS => "https://nixos.org/manual/nixos/stable/options",
             Self::NixOSUnstable => "https://nixos.org/manual/nixos/unstable/options",
             Self::HomeManager => "https://nix-community.github.io/home-manager/options.xhtml",
