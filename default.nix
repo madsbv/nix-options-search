@@ -21,7 +21,7 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "nix-options-search";
-  version = "0.3.3";
+  version = "0.3.4";
 
   src = gitignoreSource ./.;
 
