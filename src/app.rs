@@ -108,7 +108,7 @@ impl App {
         match event::read()? {
             Event::Key(key) if key.kind == KeyEventKind::Press => self.handle_key_event(key),
             _ => {}
-        };
+        }
         Ok(())
     }
 
@@ -153,7 +153,7 @@ impl App {
                     open_url(&source.url_to(item));
                 } else {
                     open_url(source.url());
-                };
+                }
             }
             (KeyCode::Enter, _) => {
                 if let Some(ref item) = self.selected_item {
