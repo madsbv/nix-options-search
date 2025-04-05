@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{ensure, Result};
+use color_eyre::eyre::{Result, ensure};
 use html2text::from_read_with_decorator;
 use html2text::render::TrivialDecorator;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};

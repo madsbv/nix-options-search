@@ -1,5 +1,5 @@
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use std::fmt;
@@ -10,7 +10,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use crate::logging::cache_dir;
-use crate::opt_data::{parse_options, parse_version, OptText};
+use crate::opt_data::{OptText, parse_options, parse_version};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InputStatus {
@@ -405,7 +405,13 @@ mod tests {
     #[test]
     fn test_empty_search() {
         let mut f = Finder::new(Source::NixDarwin);
-        assert_eq!(f.find_blocking("asdfasdfasdf", Some(5)).expect("find blocking should not fail").len(), 0, "Either empty searches crash or a search term that was thought to yield no results now does.");
+        assert_eq!(
+            f.find_blocking("asdfasdfasdf", Some(5))
+                .expect("find blocking should not fail")
+                .len(),
+            0,
+            "Either empty searches crash or a search term that was thought to yield no results now does."
+        );
     }
 
     #[test]

@@ -7,7 +7,7 @@ use ratatui::widgets::Padding;
 use ratatui::{
     prelude::*,
     symbols::border,
-    widgets::{block::Block, Borders, Paragraph, Tabs},
+    widgets::{Borders, Paragraph, Tabs, block::Block},
 };
 use std::io;
 use std::time::Duration;
