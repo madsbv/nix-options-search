@@ -20,7 +20,7 @@ online-tests = []
 
 [dependencies]
 bitcode = "0.6.4"
-color-eyre = "0.6.3"
+color-eyre = "0.6.4"
 crossterm = "0.29.0"
 directories = "6.0.0"
 html2text = "0.14.0"
