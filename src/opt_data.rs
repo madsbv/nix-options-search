@@ -271,8 +271,10 @@ impl<'dom> OptParser<'dom> {
     ) -> Vec<HTMLTag<'dom>> {
         for i in 0..split_tags.len() {
             if let Some(t) = split_tags[i].first() 
-                && t.inner_html(self.p).contains(tag) {
+                { if
+                t.inner_html(self.p).contains(tag) {
                     return split_tags.swap_remove(i);
+                }
                 
             }
         }
