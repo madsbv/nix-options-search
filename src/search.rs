@@ -274,11 +274,11 @@ impl Source {
     // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
     fn get_data(self) -> Result<SourceData> {
         let cache_validity = self.cache_is_current();
-        if let Ok(true) = cache_validity {
-            if let Ok(data) = self.load_cache() {
+        if let Ok(true) = cache_validity &&
+            let Ok(data) = self.load_cache() {
                 // Happy path: Just use existing cache
                 return Ok(data);
-            }
+            
         }
         // Cache is outdated or there was a reading error
         if let Ok(data) = self.get_online_data() {
