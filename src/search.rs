@@ -103,7 +103,7 @@ impl Finder {
         &mut self,
         pattern: &str,
         max: Option<usize>,
-    ) -> std::result::Result<Vec<OptText>, Box<(dyn std::any::Any + Send + 'static)>> {
+    ) -> std::result::Result<Vec<OptText>, Box<dyn std::any::Any + Send + 'static>> {
         if let Some(handle) = std::mem::take(&mut self.injection_handle) {
             handle.join()?;
         }

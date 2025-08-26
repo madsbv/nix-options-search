@@ -63,7 +63,7 @@ impl App {
     fn search_blocking(
         &mut self,
         max: Option<usize>,
-    ) -> std::result::Result<Vec<OptText>, Box<(dyn std::any::Any + Send + 'static)>> {
+    ) -> std::result::Result<Vec<OptText>, Box<dyn std::any::Any + Send + 'static>> {
         assert!(self.active_page < self.pages.len());
         self.pages[self.active_page].find_blocking(&self.search_string, max)
     }
