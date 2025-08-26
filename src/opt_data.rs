@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{Result, ensure};
+use color_eyre::eyre::{ensure, Result};
 use html2text::from_read_with_decorator;
 use html2text::render::TrivialDecorator;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
@@ -270,12 +270,10 @@ impl<'dom> OptParser<'dom> {
         tag: &str,
     ) -> Vec<HTMLTag<'dom>> {
         for i in 0..split_tags.len() {
-            if let Some(t) = split_tags[i].first() 
-                { if
-                t.inner_html(self.p).contains(tag) {
+            if let Some(t) = split_tags[i].first() {
+                if t.inner_html(self.p).contains(tag) {
                     return split_tags.swap_remove(i);
                 }
-                
             }
         }
         vec![]

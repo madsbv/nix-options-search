@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use std::path::PathBuf;
 use tracing_error::ErrorLayer;
-use tracing_subscriber::{self, Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 pub fn project_name() -> String {
     env!("CARGO_CRATE_NAME").to_uppercase()

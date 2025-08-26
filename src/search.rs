@@ -1,5 +1,5 @@
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{eyre, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use std::fmt;
@@ -10,7 +10,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use crate::logging::cache_dir;
-use crate::opt_data::{OptText, parse_options, parse_version};
+use crate::opt_data::{parse_options, parse_version, OptText};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InputStatus {
@@ -274,12 +274,11 @@ impl Source {
     // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
     fn get_data(self) -> Result<SourceData> {
         let cache_validity = self.cache_is_current();
-        if let Ok(true) = cache_validity { if 
-            let Ok(data) = self.load_cache() {
+        if let Ok(true) = cache_validity {
+            if let Ok(data) = self.load_cache() {
                 // Happy path: Just use existing cache
                 return Ok(data);
             }
-            
         }
         // Cache is outdated or there was a reading error
         if let Ok(data) = self.get_online_data() {
