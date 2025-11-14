@@ -38,24 +38,24 @@ impl Widget for OptListItem {
 
         let name = Paragraph::new(Line::from(vec![
             Span::styled("Name: ", title_style),
-            self.content.name.to_string().into(),
+            self.content.name.clone().into(),
         ]));
         let var_type = Paragraph::new(Line::from(vec![
             Span::styled("Type: ", title_style),
-            self.content.var_type.to_string().into(),
+            self.content.var_type.clone().into(),
         ]));
         let default = Paragraph::new(Line::from(vec![
             Span::styled("Default: ", title_style),
-            self.content.default.to_string().into(),
+            self.content.default.clone().into(),
         ]));
         let description = Paragraph::new(Line::from(vec![
             Span::styled("Description: ", title_style),
-            self.content.description.to_string().into(),
+            self.content.description.clone().into(),
         ]))
         .wrap(Wrap { trim: true });
         let example = Paragraph::new(Line::from(vec![
             Span::styled("Example: ", title_style),
-            self.content.example.to_string().into(),
+            self.content.example.clone().into(),
         ]))
         .wrap(Wrap { trim: true });
 
