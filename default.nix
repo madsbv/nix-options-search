@@ -8,6 +8,7 @@
 }:
 
 let
+  manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
   gitignoreSource =
     if gitignoreSrc != null then
       gitignoreSrc.gitignoreSource
@@ -20,9 +21,8 @@ let
       }) { inherit lib; }).gitignoreSource;
 in
 rustPlatform.buildRustPackage {
-  pname = "nix-options-search";
-  version = "0.3.4";
-
+  pname = "nox";
+  version = manifest.version;
   src = gitignoreSource ./.;
 
   buildInputs = [ ];
