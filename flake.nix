@@ -37,6 +37,13 @@
             rustc
             git
           ];
+
+          packages = with pkgs; [
+            deadnix
+            statix
+            nixfmt-tree
+            just
+          ];
         };
       }
     );

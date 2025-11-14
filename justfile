@@ -19,14 +19,14 @@ build *args: check-git
 
 alias l := lint
 lint:
-	just run nixpkgs#deadnix
-	just run nixpkgs#statix -- check
+    deadnix
+    statix check
 
 alias f := fix
 fix:
-	just run nixpkgs#deadnix -- -e
-	just run nixpkgs#statix -- fix
-	fd .nix$ | parallel 'just run nixpkgs#nixfmt-rfc-style -- {}'
+	deadnix -e
+	statix fix
+	treefmt
 
 # https://github.com/DeterminateSystems/flake-checker
 # Health check for flake.lock
