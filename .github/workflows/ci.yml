@@ -1,92 +1,102 @@
 name: CI # Continuous Integration
 
 on:
-  pull_request:
-  push:
-    branches:
-      - "main"
+    pull_request:
+    push:
+        branches:
+            - "main"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
 jobs:
-  test:
-    name: Test ubuntu / stable --all-features
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: cargo generate-lockfile
-        # enable this ci template to run regardless of whether the lockfile is checked in or not
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      # https://twitter.com/jonhoo/status/1571290371124260865
-      - name: cargo test --locked --all-features
-        run: cargo test --locked --all-features --all-targets
+    test:
+        name: Test ubuntu / stable --all-features
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+            - name: Install stable
+              uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@v2
+            - name: cargo generate-lockfile
+              # enable this ci template to run regardless of whether the lockfile is checked in or not
+              if: hashFiles('Cargo.lock') == ''
+              run: cargo generate-lockfile
+            # https://twitter.com/jonhoo/status/1571290371124260865
+            - name: cargo test --locked --all-features
+              run: cargo test --locked --all-features --all-targets
 
-  rustfmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - name: Check formatting
-        run: cargo fmt --all --check
+    rustfmt:
+        name: Rustfmt
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: rustfmt
+            - uses: Swatinem/rust-cache@v2
+            - name: Check formatting
+              run: cargo fmt --all --check
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - name: Clippy check
-        run: cargo clippy --all-targets --all-features --workspace -- -D warnings
+    clippy:
+        name: Clippy
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy
+            - uses: Swatinem/rust-cache@v2
+            - name: Clippy check
+              run: cargo clippy --all-targets --all-features --workspace -- -D warnings
 
-  docs:
-    name: Docs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Check documentation
-        env:
-          RUSTDOCFLAGS: -D warnings
-        run: cargo doc --no-deps --document-private-items --all-features --workspace --examples
+    docs:
+        name: Docs
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@v2
+            - name: Check documentation
+              env:
+                  RUSTDOCFLAGS: -D warnings
+              run: cargo doc --no-deps --document-private-items --all-features --workspace --examples
 
-  os-check:
-    # run cargo test on mac and windows
-    runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} / stable
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-      - name: cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      - uses: Swatinem/rust-cache@v2
-      - name: cargo test
-        # Skip time-consuming online tests
-        run: cargo test --locked --all-targets
+    os-check:
+        # run cargo test on mac and windows
+        runs-on: ${{ matrix.os }}
+        name: ${{ matrix.os }} / stable
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [macos-latest, windows-latest]
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  submodules: true
+            - name: Install stable
+              uses: dtolnay/rust-toolchain@stable
+            - name: cargo generate-lockfile
+              if: hashFiles('Cargo.lock') == ''
+              run: cargo generate-lockfile
+            - uses: Swatinem/rust-cache@v2
+            - name: cargo test
+              # Skip time-consuming online tests
+              run: cargo test --locked --all-targets
+
+    nix:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+            - name: Install nix
+              uses: DeterminateSystems/nix-installer-action@main
+            - name: Build package with nix
+              run: nix build .
