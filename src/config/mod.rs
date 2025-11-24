@@ -59,4 +59,8 @@ impl Config {
             )
             .map_err(|config| color_eyre::eyre::eyre!("Unable to set config: {config:?}"))
     }
+
+    pub(crate) fn to_toml(&self) -> Result<String, toml::ser::Error> {
+        toml::to_string_pretty(self)
+    }
 }
