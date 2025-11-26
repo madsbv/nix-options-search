@@ -18,7 +18,7 @@ pub(crate) fn initialize(cli: &Cli) -> Result<()> {
 
     // Override config with any given cli flags
     if let Some(log_file) = &cli.log_file {
-        user_config.log_file = log_file.to_path_buf();
+        user_config.log_file.clone_from(log_file);
     }
 
     // Set AppConfig

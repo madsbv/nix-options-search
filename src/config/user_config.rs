@@ -30,10 +30,10 @@ impl Default for UserConfig {
             use_cache: true,
             auto_refresh_cache: true,
             cache_duration: Duration::from_secs(7 * 24 * 60 * 60),
-            cache_dir: project_paths::default_cache_dir().to_path_buf(),
+            cache_dir: project_paths::default_cache_dir().clone(),
             enable_logging: true,
             log_level: String::from("error"),
-            log_file: project_paths::default_log_file().to_path_buf(),
+            log_file: project_paths::default_log_file().clone(),
         }
     }
 }
@@ -46,7 +46,7 @@ impl UserConfig {
 
     pub(super) fn build(custom_config_location: Option<PathBuf>) -> Result<Self> {
         let config_file =
-            custom_config_location.unwrap_or_else(|| project_paths::default_config_file());
+            custom_config_location.unwrap_or_else(project_paths::default_config_file);
         Ok(Self::figment(&config_file).extract()?)
     }
 

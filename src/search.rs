@@ -13,13 +13,13 @@ use crate::config::CONFIG;
 use crate::opt_data::{parse_options, parse_version, OptText};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum InputStatus {
+pub(crate) enum InputStatus {
     Unchanged,
     Append,
     Change,
 }
 
-pub struct Finder {
+pub(crate) struct Finder {
     source: Source,
     version: Arc<OnceLock<String>>,
     searcher: Nucleo<OptText>,
@@ -28,7 +28,7 @@ pub struct Finder {
 }
 
 impl Finder {
-    pub fn new(source: Source) -> Self {
+    pub(crate) fn new(source: Source) -> Self {
         Self::new_with_data_fn(source, None)
     }
 
@@ -55,21 +55,21 @@ impl Finder {
         }
     }
 
-    pub fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         self.source.to_string()
     }
 
-    pub fn url(&self) -> &'static str {
+    pub(crate) fn url(&self) -> &'static str {
         self.source.url()
     }
 
-    pub fn version(&self) -> &str {
+    pub(crate) fn version(&self) -> &str {
         self.version
             .get()
             .map_or("Version number not found (yet)", |s| s)
     }
 
-    pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
+    pub(crate) fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
         if input_status != InputStatus::Unchanged {
             self.searcher.pattern.reparse(
                 0,
@@ -83,7 +83,7 @@ impl Finder {
         self.searcher.tick(10);
     }
 
-    pub fn get_results(&self, max: Option<usize>) -> Vec<OptText> {
+    pub(crate) fn get_results(&self, max: Option<usize>) -> Vec<OptText> {
         let snap = self.searcher.snapshot();
         let n = snap.matched_item_count();
 
@@ -94,12 +94,12 @@ impl Finder {
         }
     }
 
-    pub fn source(&self) -> Source {
+    pub(crate) fn source(&self) -> Source {
         self.source
     }
 
     // For testing purposes
-    pub fn find_blocking(
+    pub(crate) fn find_blocking(
         &mut self,
         pattern: &str,
         max: Option<usize>,
@@ -112,7 +112,7 @@ impl Finder {
         Ok(self.get_results(max))
     }
 
-    pub fn url_to(&self, opt: &OptText) -> String {
+    pub(crate) fn url_to(&self, opt: &OptText) -> String {
         self.source.url_to(opt)
     }
 }
@@ -155,7 +155,7 @@ fn new_searcher(
 #[derive(
     Debug, Copy, Clone, Encode, Decode, PartialEq, strum::VariantArray, Deserialize, Serialize,
 )]
-pub enum Source {
+pub(crate) enum Source {
     NixDarwin,
     NixOS,
     NixOSUnstable,

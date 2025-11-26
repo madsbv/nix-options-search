@@ -27,7 +27,7 @@ fn main() {
 fn init_and_run() -> Result<()> {
     // This should essentially never error, but if it does, it's a non-critical error to the end user so we ignore it in release builds.
     let res = color_eyre::install();
-    debug_assert!(matches!(res, Ok(_)));
+    debug_assert!(matches!(res, Ok(())));
 
     let cli = Cli::parse();
 
