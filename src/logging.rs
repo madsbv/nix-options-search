@@ -1,12 +1,12 @@
 // Ratatui docs logging example, modified to use OnceLock instead of lazy_static
 // https://ratatui.rs/how-to/develop-apps/log-with-tracing/
-use crate::config::{self, Config};
+use crate::config::CONFIG;
 use color_eyre::eyre::Result;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 pub fn initialize() -> Result<()> {
-    let Some(ref log_file_path) = config::Config::get()?.log_file else {
+    let Some(ref log_file_path) = CONFIG.wait().log_file else {
         return Ok(());
     };
     if let Some(log_dir) = log_file_path.parent() {
@@ -14,15 +14,10 @@ pub fn initialize() -> Result<()> {
     }
     let log_file = std::fs::File::create(log_file_path)?;
 
-    let config_log_level = if let Ok(config) = Config::get() {
-        &config.log_level
-    } else {
-        ""
-    };
     // Build an EnvFilter from the environment variable RUST_LOG if set, else from the loaded configuration.
     // The directives syntax: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#example-syntax
-    let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(config_log_level));
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(&CONFIG.wait().log_level));
 
     let file_subscriber = tracing_subscriber::fmt::layer()
         .with_file(true)

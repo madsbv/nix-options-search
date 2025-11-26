@@ -1,16 +1,18 @@
-use crate::{config::Config, project_paths};
+use crate::config::{UserConfig, CONFIG};
 use clap::{Parser, Subcommand};
 use color_eyre::eyre::Result;
 use std::{io::Write, path::PathBuf};
 
-use crate::{cache::delete_cache_dir, project_paths::cache_dir};
+use crate::cache::delete_cache_dir;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 pub(crate) struct Cli {
     /// Path to a custom config file
     #[arg(short, long, value_name = "FILE")]
-    config: Option<PathBuf>,
+    pub(crate) config: Option<PathBuf>,
+    #[arg(short, long, value_name = "FILE")]
+    pub(crate) log_file: Option<PathBuf>,
 
     #[command(subcommand)]
     pub(crate) command: Option<Commands>,
@@ -29,20 +31,22 @@ pub(crate) enum Commands {
 }
 
 impl Commands {
-    pub(crate) fn run(self) -> Result<()> {
+    pub(crate) fn run(&self, cli: &Cli) -> Result<()> {
         match self {
             Commands::ClearCache => clear_cache(),
-            Commands::DefaultConfig { write } => default_config(write),
+            Commands::DefaultConfig { write } => default_config(*write, cli.config.as_ref()),
         }
     }
 }
 
-fn default_config(write: bool) -> Result<()> {
-    let toml = Config::default().to_toml()?;
+fn default_config(write: bool, write_path: Option<&PathBuf>) -> Result<()> {
+    let toml = UserConfig::default().to_toml()?;
+
     println!("{toml}");
     if write {
         // NOTE: The two user confirmations are deliberate to prevent unintended loss of existing config.
-        let write_path = project_paths::config_file();
+        let default_config_file = crate::config::default_config_file();
+        let write_path = write_path.unwrap_or(&default_config_file);
         let warning = format!("Writing default config to {}", write_path.display());
         if user_confirm(&warning)? {
             if let Some(dir) = write_path.parent() {
@@ -63,7 +67,10 @@ fn default_config(write: bool) -> Result<()> {
 }
 
 fn clear_cache() -> Result<()> {
-    let dir = cache_dir();
+    let Some(ref dir) = CONFIG.wait().cache_dir else {
+        println!("Cache directory is unset in your configuration, nothing to clear.");
+        return Ok(());
+    };
     let warning = format!("Deleting the following directory: {}", dir.display());
     if user_confirm(&warning)? {
         return delete_cache_dir();

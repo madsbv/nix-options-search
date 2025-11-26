@@ -1,66 +1,30 @@
-use crate::{
-    project_paths::{self, project_name},
-    search::Source,
-};
-use color_eyre::eyre::{OptionExt, Result};
-use figment::{
-    providers::{Env, Format, Serialized, Toml},
-    Figment,
-};
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use crate::cli::Cli;
+use app_config::AppConfig;
+use color_eyre::eyre::{eyre, Result};
 use std::sync::OnceLock;
-use std::time::Duration;
 
-static CONFIG: OnceLock<Config> = OnceLock::new();
+mod app_config;
+mod project_paths;
+mod user_config;
+pub(crate) use project_paths::default_config_file;
+pub(crate) use user_config::UserConfig;
 
-#[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct Config {
-    pub(crate) sources: Vec<Source>,
-    pub(crate) use_cache: bool,
-    pub(crate) cache_duration: std::time::Duration,
-    pub(crate) cache_dir: Option<PathBuf>,
-    pub(crate) log_level: String, // Probably not the right type, will dig that out later
-    pub(crate) log_file: Option<PathBuf>,
-}
+/// The final source of truth on configurable aspects of the program.
+pub(crate) static CONFIG: OnceLock<AppConfig> = OnceLock::new();
 
-impl Default for Config {
-    fn default() -> Self {
-        // TODO: Set defaults
-        Self {
-            sources: Vec::default(),
-            use_cache: true,
-            cache_duration: Duration::default(),
-            cache_dir: None,
-            log_level: String::default(),
-            log_file: Some(project_paths::log_file().clone()),
-        }
-    }
-}
-impl Config {
-    fn figment() -> Figment {
-        Figment::from(Serialized::defaults(Config::default()))
-            .merge(Toml::file(project_paths::config_file()))
-            .merge(Env::prefixed(format!("{}_", project_name()).as_str()))
+pub(crate) fn initialize(cli: &Cli) -> Result<()> {
+    // Build user config from config file and possible environment variables
+    let mut user_config = UserConfig::build(cli.config.clone())?;
+
+    // Override config with any given cli flags
+    if let Some(log_file) = &cli.log_file {
+        user_config.log_file = log_file.to_path_buf();
     }
 
-    pub(crate) fn get() -> Result<&'static Config> {
-        CONFIG.get().ok_or_eyre("Config not defined")
-    }
-
-    pub(crate) fn set(extra: Option<impl figment::Provider>) -> Result<()> {
-        CONFIG
-            .set(
-                match extra {
-                    Some(extra) => Figment::from(Config::figment()).merge(extra),
-                    None => Figment::from(Config::figment()),
-                }
-                .extract()?,
-            )
-            .map_err(|config| color_eyre::eyre::eyre!("Unable to set config: {config:?}"))
-    }
-
-    pub(crate) fn to_toml(&self) -> Result<String, toml::ser::Error> {
-        toml::to_string_pretty(self)
-    }
+    // Set AppConfig
+    CONFIG.set(AppConfig::from(user_config)).map_err(|err| {
+        eyre!(
+            "Loading configuration failed because the following AppConfig was already set: {err:?}"
+        )
+    })
 }

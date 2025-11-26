@@ -3,7 +3,6 @@ use color_eyre::eyre::Result;
 use tracing::debug;
 
 mod app;
-mod project_paths;
 use app::App;
 mod cli;
 use cli::Cli;
@@ -26,15 +25,18 @@ fn main() {
 }
 
 fn init_and_run() -> Result<()> {
-    color_eyre::install()?;
-    config::Config::set(None::<figment::providers::Serialized<()>>)?;
-    logging::initialize()?;
-    cache::initialize()?;
+    // This should essentially never error, but if it does, it's a non-critical error to the end user so we ignore it in release builds.
+    let res = color_eyre::install();
+    debug_assert!(matches!(res, Ok(_)));
 
     let cli = Cli::parse();
 
-    if let Some(cmd) = cli.command {
-        cmd.run()?;
+    config::initialize(&cli)?;
+    logging::initialize()?;
+    cache::initialize()?;
+
+    if let Some(ref cmd) = cli.command {
+        cmd.run(&cli)?;
     } else {
         debug!("Application started");
         let mut terminal = tui::init()?;

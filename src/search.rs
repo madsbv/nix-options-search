@@ -1,5 +1,5 @@
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{eyre, OptionExt, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use serde::{Deserialize, Serialize};
@@ -8,10 +8,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
-use std::time::Duration;
 
+use crate::config::CONFIG;
 use crate::opt_data::{parse_options, parse_version, OptText};
-use crate::project_paths::cache_dir;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InputStatus {
@@ -166,7 +165,6 @@ pub enum Source {
 }
 
 impl Source {
-    const CACHE_MAX_AGE: Duration = Duration::from_secs(7 * 24 * 60 * 60);
     // From docs: Compression level 0 means "use zstd default compression level", currently 3
     const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
@@ -205,8 +203,9 @@ impl Source {
         format!("{}#{}-{}", self.url(), tag, opt.name.trim())
     }
 
-    fn cache_path(self) -> PathBuf {
-        cache_dir().clone().join(format!("{self}.zst"))
+    /// Returns the path to the cache file for this source if a cache directory has been configured, otherwise None
+    fn cache_path(self) -> Option<PathBuf> {
+        Some(CONFIG.get()?.cache_dir.clone()?.join(format!("{self}.zst")))
     }
 
     fn store_cache_to(data: &SourceData, path: &PathBuf) -> Result<()> {
@@ -218,7 +217,12 @@ impl Source {
     }
 
     fn store_cache(self, data: &SourceData) -> Result<()> {
-        Source::store_cache_to(data, &self.cache_path())
+        Source::store_cache_to(
+            data,
+            &self
+                .cache_path()
+                .ok_or_eyre("No cache directory configured")?,
+        )
     }
 
     fn load_cache_from(path: &PathBuf) -> Result<SourceData> {
@@ -229,15 +233,26 @@ impl Source {
     }
 
     fn load_cache(self) -> Result<SourceData> {
-        Source::load_cache_from(&self.cache_path())
+        Source::load_cache_from(
+            &self
+                .cache_path()
+                .ok_or_eyre("No cache directory configured")?,
+        )
     }
 
     /// Returns Ok(bool) if and only if there is a readable cache file. The value of the bool depends on the last modified time of the file, as reported by the file system.
     fn cache_is_current(self) -> Result<bool> {
-        let f = std::fs::File::open(self.cache_path())?;
-        let last_modified = f.metadata()?.modified()?;
-        let age = last_modified.elapsed()?;
-        Ok(age < Source::CACHE_MAX_AGE)
+        let f = std::fs::File::open(
+            self.cache_path()
+                .ok_or_eyre("No cache directory configured")?,
+        )?;
+        if let Some(ref max_age) = CONFIG.wait().cache_duration {
+            let last_modified = f.metadata()?.modified()?;
+            let age = last_modified.elapsed()?;
+            Ok(age < *max_age)
+        } else {
+            Ok(true)
+        }
     }
 
     fn get_version(self) -> Result<String> {
@@ -407,6 +422,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "online-tests")]
     fn test_empty_search() {
         let mut f = Finder::new(Source::NixDarwin);
         assert_eq!(

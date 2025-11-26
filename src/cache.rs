@@ -1,12 +1,16 @@
-use crate::project_paths::cache_dir;
+use crate::config::CONFIG;
 use color_eyre::eyre::Result;
 
 pub(crate) fn initialize() -> Result<()> {
-    std::fs::create_dir_all(cache_dir())?;
+    if let Some(dir) = &CONFIG.wait().cache_dir {
+        std::fs::create_dir_all(dir)?;
+    }
     Ok(())
 }
 
 pub(crate) fn delete_cache_dir() -> Result<()> {
-    std::fs::remove_dir_all(cache_dir())?;
+    if let Some(dir) = &CONFIG.wait().cache_dir {
+        std::fs::remove_dir_all(dir)?;
+    }
     Ok(())
 }
