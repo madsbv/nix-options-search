@@ -2,6 +2,7 @@ use crate::config::CONFIG;
 use crate::parsing::{parse_options, parse_version, OptText};
 use bitcode::{Decode, Encode};
 use color_eyre::eyre::{eyre, OptionExt, Result};
+use lazy_regex::regex_replace_all;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use serde::{Deserialize, Serialize};
@@ -10,8 +11,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
-use std::time::Duration;
-use ureq::http;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum InputStatus {
@@ -93,10 +92,6 @@ impl Finder {
             Some(n) => res.take(n).collect(),
             None => res.collect(),
         }
-    }
-
-    pub(crate) fn source(&self) -> Source {
-        self.source
     }
 
     // For testing purposes
@@ -276,12 +271,14 @@ impl Source {
             .read_to_string()?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
 
-        Ok(SourceData {
+        let mut data = SourceData {
             source: self,
             opts: parse_options(&dom)
                 .map(|ok| ok.into_iter().map(std::convert::Into::into).collect())?,
             version: self.get_version()?,
-        })
+        };
+        data.nixos_unstable_declared_by_hack();
+        Ok(data)
     }
 
     // We could return a Result or Option to account for possible failure modes, but currently I'm not sure what I'd use it for.
@@ -333,6 +330,23 @@ struct SourceData {
     source: Source,
     opts: Vec<OptText>,
     version: String,
+}
+
+impl SourceData {
+    fn nixos_unstable_declared_by_hack(&mut self) {
+        if self.source == Source::NixOSUnstable {
+            for opt in &mut self.opts {
+                opt.declared_by_urls = opt
+                    .declared_by_urls
+                    .iter()
+                    .map(|url| {
+                        regex_replace_all!(r#"release-\d{2}\.\d{2}"#, url, "nixos-unstable")
+                            .to_string()
+                    })
+                    .collect();
+            }
+        }
+    }
 }
 
 #[cfg(test)]

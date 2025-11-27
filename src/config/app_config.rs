@@ -6,6 +6,7 @@ use super::user_config::UserConfig;
 
 #[derive(Debug)]
 pub(crate) struct AppConfig {
+    #[allow(dead_code)]
     pub(crate) sources: Vec<Source>,
     pub(crate) cache_duration: Option<std::time::Duration>,
     pub(crate) cache_dir: Option<PathBuf>,
