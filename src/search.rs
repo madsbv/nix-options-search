@@ -113,8 +113,8 @@ impl Finder {
         Ok(self.get_results(max))
     }
 
-    pub(crate) fn url_to(&self, opt: &OptText) -> String {
-        self.source.url_to(opt)
+    pub(crate) fn doc_url_to(&self, opt: &OptText) -> String {
+        self.source.doc_url_to(opt)
     }
 }
 
@@ -195,13 +195,8 @@ impl Source {
         }
     }
 
-    fn url_to(self, opt: &OptText) -> String {
-        let tag = match self {
-            Self::NixDarwin | Self::NixOS | Self::NixOSUnstable | Self::HomeManager => "opt",
-            Self::HomeManagerNixOS => "nixos-opt",
-            Self::HomeManagerNixDarwin => "nix-darwin-opt",
-        };
-        format!("{}#{}-{}", self.url(), tag, opt.name.trim())
+    fn doc_url_to(self, opt: &OptText) -> String {
+        format!("{}#{}", self.url(), opt.id)
     }
 
     /// Returns the path to the cache file for this source if a cache directory has been configured, otherwise None
@@ -415,7 +410,7 @@ mod tests {
             .expect("Can get data")
             .opts
             .into_iter()
-            .map(|opt| s.url_to(&opt));
+            .map(|opt| s.doc_url_to(&opt));
         for url in urls {
             assert_eq!(url, url.trim());
             assert_ne!(url.chars().last(), Some('\n'));

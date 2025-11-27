@@ -150,7 +150,7 @@ impl App {
             (KeyCode::Char('o'), KeyModifiers::CONTROL) => {
                 let source = &self.pages[self.active_page];
                 if let Some(ref item) = self.selected_item {
-                    open_url(&source.url_to(item));
+                    open_url(&source.doc_url_to(item));
                 } else {
                     open_url(source.url());
                 }
