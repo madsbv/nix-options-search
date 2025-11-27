@@ -3,6 +3,7 @@ use crate::opt_display::OptListItem;
 use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use lazy_regex::regex_replace_all;
 use ratatui::widgets::Padding;
 use ratatui::{
     prelude::*,
@@ -159,8 +160,11 @@ impl App {
                 if let Some(ref item) = self.selected_item {
                     for u in &item.declared_by_urls {
                         if self.pages[self.active_page].source() == Source::NixOSUnstable {
-                            // XXX 250211: For some reason, the documentation of nixos-unstable links to the "release-25.05" branch of the nixpkgs repository, but that branch does not yet exist, so we manually override to get the nixos-unstable branch instead.
-                            open_url(&u.replace("release-25.05", "nixos-unstable"));
+                            // In the runup to new nixos releases, the nixos-unstable documentation starts linking to the upcoming release repo before the repo itself has been created, so we have to rewrite the links to point to the proper unstable repo.
+                            // TODO: Move this logic to the `Source` parsing itself instead of here.
+                            let c =
+                                regex_replace_all!(r#"release-\d{2}\.\d{2}"#, u, "nixos-unstable");
+                            open_url(&c);
                         } else {
                             open_url(u);
                         }
