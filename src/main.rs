@@ -9,8 +9,8 @@ use cli::Cli;
 mod cache;
 mod config;
 mod logging;
-mod opt_data;
 mod opt_display;
+mod parsing;
 mod search;
 mod tui;
 

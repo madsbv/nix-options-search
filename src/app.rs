@@ -1,5 +1,5 @@
-use crate::opt_data::OptText;
 use crate::opt_display::OptListItem;
+use crate::parsing::OptText;
 use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};

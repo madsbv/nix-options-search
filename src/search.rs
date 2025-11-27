@@ -1,3 +1,5 @@
+use crate::config::CONFIG;
+use crate::parsing::{parse_options, parse_version, OptText};
 use bitcode::{Decode, Encode};
 use color_eyre::eyre::{eyre, OptionExt, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
@@ -8,9 +10,8 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
-
-use crate::config::CONFIG;
-use crate::opt_data::{parse_options, parse_version, OptText};
+use std::time::Duration;
+use ureq::http;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum InputStatus {
