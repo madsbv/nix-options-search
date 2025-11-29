@@ -1,16 +1,18 @@
-use crate::config::CONFIG;
+use crate::config::SourceConfig;
 use crate::parsing::{parse_options, parse_version, OptText};
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{eyre, OptionExt, Result};
+use color_eyre::eyre::{eyre, Result};
 use lazy_regex::regex_replace_all;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
+use std::time::Duration;
+use tracing::{debug, instrument};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum InputStatus {
@@ -28,16 +30,29 @@ pub(crate) struct Finder {
 }
 
 impl Finder {
-    pub(crate) fn new(source: Source) -> Self {
-        Self::new_with_data_fn(source, None)
+    pub(crate) fn new(
+        source: Source,
+        cache_dir: Option<&'static Path>,
+        cache_duration: Option<Duration>,
+    ) -> Self {
+        Self::new_with_data_fn(source, None, cache_dir, cache_duration)
     }
 
     // Allows for overriding the data source, namely for tests that specifically want to acquire data online or from cache.
     fn new_with_data_fn(
         source: Source,
         data_fn: Option<Box<dyn Fn() -> Result<SourceData> + Send>>,
+        cache_dir: Option<&'static Path>,
+        cache_duration: Option<Duration>,
     ) -> Self {
-        let data_fn = data_fn.unwrap_or(Box::new(move || source.get_data()));
+        let source_clone = source.clone();
+        let data_fn = data_fn.unwrap_or(Box::new(move || {
+            let res = source_clone.get_data(cache_dir, cache_duration);
+            if res.is_err() {
+                debug!(?res);
+            }
+            res
+        }));
 
         let results_waiting = Arc::new(AtomicBool::new(false));
         let results_sender = Arc::clone(&results_waiting);
@@ -59,7 +74,7 @@ impl Finder {
         self.source.to_string()
     }
 
-    pub(crate) fn url(&self) -> &'static str {
+    pub(crate) fn url(&self) -> &str {
         self.source.url()
     }
 
@@ -148,58 +163,47 @@ fn new_searcher(
     (nuc, handle)
 }
 
-#[derive(
-    Debug, Copy, Clone, Encode, Decode, PartialEq, strum::VariantArray, Deserialize, Serialize,
-)]
-pub(crate) enum Source {
-    NixDarwin,
-    NixOS,
-    NixOSUnstable,
-    HomeManager,
-    HomeManagerNixOS,
-    HomeManagerNixDarwin,
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Deserialize, Serialize)]
+// #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub(crate) struct Source {
+    inner: SourceConfig,
+    // cache_duration: Option<Duration>,
+    // cache_dir: Option<PathBuf>,
 }
 
 impl Source {
     // From docs: Compression level 0 means "use zstd default compression level", currently 3
     const ZSTD_COMPRESSION_LEVEL: i32 = 0;
-
-    fn url(self) -> &'static str {
-        match self {
-            Self::NixDarwin => "https://nix-darwin.github.io/nix-darwin/manual/index.html",
-            Self::NixOS => "https://nixos.org/manual/nixos/stable/options",
-            Self::NixOSUnstable => "https://nixos.org/manual/nixos/unstable/options",
-            Self::HomeManager => "https://nix-community.github.io/home-manager/options.xhtml",
-            Self::HomeManagerNixOS => {
-                "https://nix-community.github.io/home-manager/nixos-options.xhtml"
-            }
-            Self::HomeManagerNixDarwin => {
-                "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml"
-            }
+    pub(crate) fn from(
+        source: &SourceConfig,
+        // cache_duration: Option<&Duration>,
+        // cache_dir: Option<&PathBuf>,
+    ) -> Self {
+        Self {
+            inner: source.clone(),
+            // cache_duration: cache_duration.copied(),
+            // cache_dir: cache_dir.cloned(),
         }
     }
 
-    fn version_url(self) -> &'static str {
-        match self {
-            Self::NixDarwin => self.url(),
-            Self::NixOS => "https://nixos.org/manual/nixos/stable/",
-            Self::NixOSUnstable => "https://nixos.org/manual/nixos/unstable/",
-            Self::HomeManager | Self::HomeManagerNixOS | Self::HomeManagerNixDarwin => {
-                "https://nix-community.github.io/home-manager/"
-            }
-        }
+    fn url(&self) -> &str {
+        &self.inner.url
     }
 
-    fn doc_url_to(self, opt: &OptText) -> String {
+    fn version_url(&self) -> &str {
+        self.inner.version_url.as_ref().unwrap_or(&self.inner.url)
+    }
+
+    fn doc_url_to(&self, opt: &OptText) -> String {
         format!("{}#{}", self.url(), opt.id)
     }
 
     /// Returns the path to the cache file for this source if a cache directory has been configured, otherwise None
-    fn cache_path(self) -> Option<PathBuf> {
-        Some(CONFIG.get()?.cache_dir.clone()?.join(format!("{self}.zst")))
+    fn cache_path(&self, cache_dir: &Path) -> PathBuf {
+        cache_dir.join(format!("{self}.zst"))
     }
 
-    fn store_cache_to(data: &SourceData, path: &PathBuf) -> Result<()> {
+    fn store_cache_to(data: &SourceData, path: &Path) -> Result<()> {
         let bitdata = bitcode::encode(data);
         let zstddata =
             zstd::stream::encode_all(bitdata.as_slice(), Source::ZSTD_COMPRESSION_LEVEL)?;
@@ -207,37 +211,25 @@ impl Source {
         Ok(())
     }
 
-    fn store_cache(self, data: &SourceData) -> Result<()> {
-        Source::store_cache_to(
-            data,
-            &self
-                .cache_path()
-                .ok_or_eyre("No cache directory configured")?,
-        )
+    fn store_cache(&self, data: &SourceData, cache_dir: &Path) -> Result<()> {
+        Source::store_cache_to(data, &self.cache_path(cache_dir))
     }
 
-    fn load_cache_from(path: &PathBuf) -> Result<SourceData> {
+    fn load_cache_from(path: &Path) -> Result<SourceData> {
         let zstddata = std::fs::read(path)?;
         let bitdata = zstd::stream::decode_all(zstddata.as_slice())?;
         let data = bitcode::decode(&bitdata)?;
         Ok(data)
     }
 
-    fn load_cache(self) -> Result<SourceData> {
-        Source::load_cache_from(
-            &self
-                .cache_path()
-                .ok_or_eyre("No cache directory configured")?,
-        )
+    fn load_cache(&self, cache_dir: &Path) -> Result<SourceData> {
+        Source::load_cache_from(&self.cache_path(cache_dir))
     }
 
     /// Returns Ok(bool) if and only if there is a readable cache file. The value of the bool depends on the last modified time of the file, as reported by the file system.
-    fn cache_is_current(self) -> Result<bool> {
-        let f = std::fs::File::open(
-            self.cache_path()
-                .ok_or_eyre("No cache directory configured")?,
-        )?;
-        if let Some(ref max_age) = CONFIG.wait().cache_duration {
+    fn cache_is_current(&self, cache_dir: &Path, cache_duration: Option<Duration>) -> Result<bool> {
+        let f = std::fs::File::open(self.cache_path(cache_dir))?;
+        if let Some(ref max_age) = cache_duration {
             let last_modified = f.metadata()?.modified()?;
             let age = last_modified.elapsed()?;
             Ok(age < *max_age)
@@ -246,7 +238,9 @@ impl Source {
         }
     }
 
-    fn get_version(self) -> Result<String> {
+    #[instrument(err, level = "debug")]
+    fn get_version(&self) -> Result<String> {
+        // TODO: Try to avoid getting the whole document
         let html = ureq::get(self.version_url())
             .call()?
             .body_mut()
@@ -260,7 +254,8 @@ impl Source {
         ))
     }
 
-    fn get_online_data(self) -> Result<SourceData> {
+    #[instrument(err, level = "debug")]
+    fn get_online_data(&self) -> Result<SourceData> {
         let html = ureq::get(self.url())
             .call()?
             .body_mut()
@@ -271,11 +266,12 @@ impl Source {
             .read_to_string()?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
 
+        let version = self.get_version()?;
         let mut data = SourceData {
-            source: self,
+            source: self.clone(),
             opts: parse_options(&dom)
                 .map(|ok| ok.into_iter().map(std::convert::Into::into).collect())?,
-            version: self.get_version()?,
+            version,
         };
         data.nixos_unstable_declared_by_hack();
         Ok(data)
@@ -283,10 +279,17 @@ impl Source {
 
     // We could return a Result or Option to account for possible failure modes, but currently I'm not sure what I'd use it for.
     // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
-    fn get_data(self) -> Result<SourceData> {
-        let cache_validity = self.cache_is_current();
+    fn get_data(
+        &self,
+        cache_dir: Option<&Path>,
+        cache_duration: Option<Duration>,
+    ) -> Result<SourceData> {
+        let Some(cache_dir) = cache_dir else {
+            return self.get_online_data();
+        };
+        let cache_validity = self.cache_is_current(cache_dir, cache_duration);
         if let Ok(true) = cache_validity {
-            if let Ok(data) = self.load_cache() {
+            if let Ok(data) = self.load_cache(cache_dir) {
                 // Happy path: Just use existing cache
                 return Ok(data);
             }
@@ -295,14 +298,14 @@ impl Source {
         if let Ok(data) = self.get_online_data() {
             // We can get the opts from the web and update the cache
             // Ignore the result
-            drop(self.store_cache(&data));
+            drop(self.store_cache(&data, cache_dir));
             return Ok(data);
         }
         // Cache is outdated or broken and we're effectively offline
         if let Ok(false) = cache_validity {
             // If the cache was just outdated, returning the outdated cache is better than nothing
             // If loading the cache fails, other Sources might still work, so avoid crashing the program by unwrapping.
-            if let Ok(data) = self.load_cache() {
+            if let Ok(data) = self.load_cache(cache_dir) {
                 return Ok(data);
             }
         }
@@ -313,15 +316,7 @@ impl Source {
 
 impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match self {
-            Self::NixDarwin => "Nix-Darwin",
-            Self::NixOS => "NixOS",
-            Self::NixOSUnstable => "NixOS Unstable",
-            Self::HomeManager => "Home Manager",
-            Self::HomeManagerNixOS => "Home Manager NixOS",
-            Self::HomeManagerNixDarwin => "Home Manager Nix-Darwin",
-        };
-        write!(f, "{s}")
+        write!(f, "{}", self.inner.name)
     }
 }
 
@@ -334,7 +329,7 @@ struct SourceData {
 
 impl SourceData {
     fn nixos_unstable_declared_by_hack(&mut self) {
-        if self.source == Source::NixOSUnstable {
+        if self.source.inner.name == "NixOS Unstable" {
             for opt in &mut self.opts {
                 opt.declared_by_urls = opt
                     .declared_by_urls
@@ -353,6 +348,7 @@ impl SourceData {
 mod tests {
 
     use super::*;
+    use crate::config::consts;
 
     #[cfg(feature = "online-tests")]
     use tempfile::tempdir;
@@ -360,7 +356,7 @@ mod tests {
     #[test]
     #[cfg(feature = "online-tests")]
     fn test_cache_roundtrip() {
-        let s = Source::NixDarwin;
+        let s = Source::from(&consts::NIX_DARWIN);
         let Ok(opts) = s.get_online_data() else {
             panic!(
                 "Can get and parse options for {s} from the web (tests require network connection)"
@@ -384,14 +380,14 @@ mod tests {
     #[cfg(feature = "online-tests")]
     fn test_finders() {
         let mut handles = vec![];
-        for s in [
-            Source::NixDarwin,
-            Source::NixOS, // While slow, running this is necessary to sufficiently test the find_blocking method
-            Source::HomeManager,
-            Source::HomeManagerNixOS,
-            Source::HomeManagerNixDarwin,
-        ] {
-            handles.push((s, std::thread::spawn(move || test_finder(s))));
+        for s in consts::BUILTIN_SOURCES.iter() {
+            let s = Source {
+                inner: (*s).clone(),
+            };
+            handles.push((
+                s.clone(),
+                std::thread::spawn(move || test_finder(&s, None, None)),
+            ));
         }
         for h in handles {
             assert!(
@@ -403,8 +399,12 @@ mod tests {
     }
 
     #[cfg(feature = "online-tests")]
-    fn test_finder(source: Source) {
-        let mut f = Finder::new_with_data_fn(source, Some(Box::new(move || source.get_data())));
+    fn test_finder(
+        source: &Source,
+        cache_dir: Option<&'static Path>,
+        cache_duration: Option<Duration>,
+    ) {
+        let mut f = Finder::new(source.clone(), cache_dir, cache_duration);
         assert_ne!(
             f.find_blocking("s", Some(5))
                 .expect("find_blocking should not fail")
@@ -418,9 +418,9 @@ mod tests {
     #[cfg(feature = "online-tests")]
     fn test_doc_urls_trimmed() {
         // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
-        let s = Source::NixDarwin;
+        let s = Source::from(&consts::NIX_DARWIN);
         let urls = s
-            .get_data()
+            .get_data(None, None)
             .expect("Can get data")
             .opts
             .into_iter()
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     #[cfg(feature = "online-tests")]
     fn test_empty_search() {
-        let mut f = Finder::new(Source::NixDarwin);
+        let mut f = Finder::new(Source::from(&consts::NIX_DARWIN), None, None);
         assert_eq!(
             f.find_blocking("asdfasdfasdf", Some(5))
                 .expect("find blocking should not fail")
@@ -447,9 +447,10 @@ mod tests {
     #[test]
     #[cfg(feature = "online-tests")]
     fn test_get_version() {
-        use strum::VariantArray;
+        use crate::config::consts;
 
-        for s in Source::VARIANTS {
+        for s in consts::BUILTIN_SOURCES.iter() {
+            let s = Source::from(s);
             let version = s.get_version().expect("Can get version");
             assert!(version.contains("Version"), "Version string: {version}");
         }

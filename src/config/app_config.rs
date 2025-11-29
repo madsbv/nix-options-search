@@ -1,13 +1,10 @@
+use super::{user_config::UserConfig, SourceConfig};
 use std::path::PathBuf;
-
-use crate::search::Source;
-
-use super::user_config::UserConfig;
 
 #[derive(Debug)]
 pub(crate) struct AppConfig {
     #[allow(dead_code)]
-    pub(crate) sources: Vec<Source>,
+    pub(crate) sources: Vec<SourceConfig>,
     pub(crate) cache_duration: Option<std::time::Duration>,
     pub(crate) cache_dir: Option<PathBuf>,
     pub(crate) log_level: String,
@@ -35,5 +32,11 @@ impl From<UserConfig> for AppConfig {
                 None
             },
         }
+    }
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        UserConfig::default().into()
     }
 }

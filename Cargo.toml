@@ -20,7 +20,7 @@ path = "src/main.rs"
 online-tests = []
 
 [dependencies]
-bitcode = "0.6.4"
+bitcode = "0.6.7"
 clap = { version = "4.5.51", features = ["derive"] }
 color-eyre = "0.6.3"
 crossterm = "0.29.0"

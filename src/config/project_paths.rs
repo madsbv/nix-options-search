@@ -54,7 +54,7 @@ pub(super) fn default_log_file() -> PathBuf {
 
 /// Config file location is determined by the first found option of:
 /// - the environment variable `NOX_CONFIG`,
-/// - The OS standard data directory (usually in `$HOME/.config/nox/` on Linux, `$HOME/Library/Application Support/` on Mac),
+/// - The OS standard config directory (usually in `$HOME/.config/nox/` on Linux, `$HOME/Library/Application Support/` on Mac),
 ///
 /// If neither is found, try to read a nox.toml in the current directory, which will be created if it does not exist.
 pub(crate) fn default_config_file() -> PathBuf {

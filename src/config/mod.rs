@@ -1,13 +1,14 @@
 use crate::cli::Cli;
-use app_config::AppConfig;
 use color_eyre::eyre::{eyre, Result};
 use std::sync::OnceLock;
 
 mod app_config;
+pub(crate) mod consts;
 mod project_paths;
 mod user_config;
+pub(crate) use app_config::AppConfig;
 pub(crate) use project_paths::default_config_file;
-pub(crate) use user_config::UserConfig;
+pub(crate) use user_config::{SourceConfig, UserConfig};
 
 /// The final source of truth on configurable aspects of the program.
 pub(crate) static CONFIG: OnceLock<AppConfig> = OnceLock::new();

@@ -4,12 +4,13 @@ use html2text::from_read_with_decorator;
 use html2text::render::TrivialDecorator;
 use std::borrow::Cow;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 /// Structure of data/index.html (nix-darwin): Each option header is in a `<dt>`, associated description, type, default, example and link to docs is in a `<dd>`.
 /// This method assumes that there's an equal number of `<dt>` and `<dd>` tags, and that they come paired up one after the other. If the number of `<dt>` and `<dd>` tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
 pub(crate) fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> {
     let p = dom.parser();
+    // TODO: To parse the Nixpkgs reference manual ("https://nixos.org/manual/nixpkgs/stable/"), would it help to pull out dl lists first and then parse dt/dd tags pairwise in each list?
     let dt_tags = dom
         .query_selector("dt")
         .expect("dt is a valid CSS selector")
@@ -21,7 +22,9 @@ pub(crate) fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'
 
     ensure!(
         dt_tags.len() == dd_tags.len(),
-        "there should be an equal number of dt and dd tags"
+        "Should have {} dt tags = {} dd tags",
+        dt_tags.len(),
+        dd_tags.len()
     );
 
     Ok(std::iter::zip(dt_tags, dd_tags)
@@ -124,7 +127,7 @@ impl From<OptData<'_>> for OptRawHTML {
     fn from(value: OptData<'_>) -> Self {
         let declared_by_urls = value.declared_by_urls();
 
-        debug!(name: "Convert OptData to OptRawHTML", declared_by = format!("{:?}", value.declared_by), declared_by = format!("{declared_by_urls:?}"));
+        trace!(name: "Convert OptData to OptRawHTML", declared_by = format!("{:?}", value.declared_by), declared_by = format!("{declared_by_urls:?}"));
         Self {
             id: value.term_id(),
             name: value.field_to_raw_html(&value.term),

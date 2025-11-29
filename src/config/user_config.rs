@@ -1,4 +1,4 @@
-use crate::search::Source;
+use bitcode::{Decode, Encode};
 use color_eyre::eyre::Result;
 use figment::{
     providers::{Env, Format, Serialized, Toml},
@@ -8,11 +8,15 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use super::project_paths::{self, project_env_name};
+use super::{
+    consts::BUILTIN_SOURCES,
+    project_paths::{self, project_env_name},
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct UserConfig {
-    pub(super) sources: Vec<Source>,
+    /// Order matters
+    pub(super) sources: Vec<SourceConfig>,
     pub(super) use_cache: bool,
     pub(super) auto_refresh_cache: bool,
     pub(super) cache_duration: std::time::Duration,
@@ -22,11 +26,22 @@ pub(crate) struct UserConfig {
     pub(super) log_file: PathBuf,
 }
 
+// Source specification loaded from user config.
+// Combine with global cache config to get an actual source.
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Deserialize, Serialize)]
+pub(crate) struct SourceConfig {
+    /// The name/title of the source
+    pub(crate) name: String,
+    /// The url with data to parse
+    pub(crate) url: String,
+    /// An optional url from which to try to parse the version number for the source, if it's not found on the main data page
+    pub(crate) version_url: Option<String>,
+}
+
 impl Default for UserConfig {
     fn default() -> Self {
-        // TODO: Set default sources
         Self {
-            sources: Vec::default(),
+            sources: BUILTIN_SOURCES.into_iter().cloned().collect(),
             use_cache: true,
             auto_refresh_cache: true,
             cache_duration: Duration::from_secs(7 * 24 * 60 * 60),
@@ -45,8 +60,7 @@ impl UserConfig {
     }
 
     pub(super) fn build(custom_config_location: Option<PathBuf>) -> Result<Self> {
-        let config_file =
-            custom_config_location.unwrap_or_else(project_paths::default_config_file);
+        let config_file = custom_config_location.unwrap_or_else(project_paths::default_config_file);
         Ok(Self::figment(&config_file).extract()?)
     }
 

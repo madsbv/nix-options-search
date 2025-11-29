@@ -1,5 +1,6 @@
 use clap::Parser;
 use color_eyre::eyre::Result;
+use config::CONFIG;
 use tracing::debug;
 
 mod app;
@@ -40,7 +41,7 @@ fn init_and_run() -> Result<()> {
     } else {
         debug!("Application started");
         let mut terminal = tui::init()?;
-        App::new().run(&mut terminal)?;
+        App::new(CONFIG.wait()).run(&mut terminal)?;
     }
 
     Ok(())
