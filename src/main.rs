@@ -2,10 +2,8 @@ use std::sync::OnceLock;
 
 use clap::Parser;
 use color_eyre::eyre::Result;
-use tracing::debug;
 
 mod app;
-use app::App;
 mod cli;
 use cli::Cli;
 mod cache;
@@ -45,13 +43,7 @@ fn init_and_run() -> Result<()> {
     logging::initialize(config)?;
     cache::initialize(config)?;
 
-    if let Some(ref cmd) = cli.command {
-        cmd.run(&cli, config)?;
-    } else {
-        debug!("Application started");
-        let mut terminal = tui::init()?;
-        App::new(config).run(&mut terminal)?;
-    }
+    cli.run(config)?;
 
     Ok(())
 }

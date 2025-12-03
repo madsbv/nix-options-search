@@ -1,7 +1,12 @@
-use crate::config::{default_config_file, default_config_toml, AppConfig, UserConfig};
+use crate::{
+    app::App,
+    config::{default_config_file, default_config_toml, AppConfig, UserConfig},
+    tui,
+};
 use clap::{Parser, Subcommand, ValueEnum};
 use color_eyre::eyre::Result;
 use std::{io::Write, path::PathBuf};
+use tracing::debug;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -13,11 +18,28 @@ pub(crate) struct Cli {
     pub(crate) log_file: Option<PathBuf>,
 
     #[command(subcommand)]
-    pub(crate) command: Option<Commands>,
+    command: Option<Commands>,
+}
+
+impl Cli {
+    pub(crate) fn run(self, config: &'static AppConfig) -> Result<()> {
+        match self.command {
+            Some(Commands::ClearCache) => clear_cache(config),
+            Some(Commands::PrintConfig {
+                write,
+                config_to_print,
+            }) => print_config(write, config_to_print, config, self.config.as_ref()),
+            None => {
+                debug!("Application started");
+                let mut terminal = tui::init()?;
+                App::new(config).run(&mut terminal)
+            }
+        }
+    }
 }
 
 #[derive(Subcommand)]
-pub(crate) enum Commands {
+enum Commands {
     /// Delete existing cache files
     ClearCache,
     /// Print the default configuration for nox
@@ -25,38 +47,27 @@ pub(crate) enum Commands {
         /// Write the default configuration to the default config location, or the path given to `--config` if set
         #[arg(short, long)]
         write: bool,
-        printable_config: Option<PrintableConfig>,
+        config_to_print: Option<PrintableConfig>,
     },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default)]
-pub(crate) enum PrintableConfig {
+enum PrintableConfig {
     #[default]
+    /// Print the currently active configuration
     Current,
+    /// Print the default configuration for nox
     Default,
-}
-
-impl Commands {
-    #[allow(unused_variables)]
-    pub(crate) fn run(&self, cli: &Cli, config: &AppConfig) -> Result<()> {
-        match self {
-            Commands::ClearCache => clear_cache(config),
-            Commands::PrintConfig {
-                write,
-                printable_config,
-            } => print_config(*write, *printable_config, config, cli.config.as_ref()),
-        }
-    }
 }
 
 fn print_config(
     write: bool,
 
-    printable_config: Option<PrintableConfig>,
+    config_to_print: Option<PrintableConfig>,
     config: &AppConfig,
     write_path: Option<&PathBuf>,
 ) -> Result<()> {
-    let toml = match printable_config.unwrap_or_default() {
+    let toml = match config_to_print.unwrap_or_default() {
         PrintableConfig::Default => default_config_toml(),
         PrintableConfig::Current => UserConfig::from(config.clone()).to_toml()?,
     };
