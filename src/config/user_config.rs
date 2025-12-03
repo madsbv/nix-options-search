@@ -5,7 +5,7 @@ use figment::{
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::{
@@ -56,14 +56,13 @@ impl Default for UserConfig {
 }
 
 impl UserConfig {
-    fn figment(config_file: &PathBuf) -> Figment {
+    fn figment(config_file: &Path) -> Figment {
         Figment::from(Serialized::defaults(UserConfig::default()))
             .merge(Toml::file(config_file))
             .merge(Env::prefixed(format!("{}_", project_env_name()).as_str()))
     }
 
-    pub(super) fn build(custom_config_location: Option<PathBuf>) -> Result<Self> {
-        let config_file = custom_config_location.unwrap_or_else(project_paths::default_config_file);
+    pub(super) fn build(config_file: &Path) -> Result<Self> {
         Ok(Self::figment(&config_file).extract()?)
     }
 

@@ -1,6 +1,7 @@
+use std::sync::OnceLock;
+
 use clap::Parser;
 use color_eyre::eyre::Result;
-use config::CONFIG;
 use tracing::debug;
 
 mod app;
@@ -14,6 +15,8 @@ mod opt_display;
 mod parsing;
 mod search;
 mod tui;
+
+use config::AppConfig;
 
 fn main() {
     let res = init_and_run();
@@ -32,16 +35,21 @@ fn init_and_run() -> Result<()> {
 
     let cli = Cli::parse();
 
-    config::initialize(&cli)?;
-    logging::initialize()?;
-    cache::initialize()?;
+    // Get a static config object to pass around references to. This is needed e.g. in search::new_searcher, where stuff like the cache configuration is used to construct a data_fn, a closure that gets passed to a new thread eventually
+    let config = config::initialize(&cli)?;
+    static CONFIG: OnceLock<AppConfig> = OnceLock::new();
+    CONFIG.set(config).expect("Can set OnceCell once");
+    let config = CONFIG.get().expect("Can get value of just-set OnceCell");
+
+    logging::initialize(&config)?;
+    cache::initialize(&config)?;
 
     if let Some(ref cmd) = cli.command {
-        cmd.run(&cli)?;
+        cmd.run(&cli, &config)?;
     } else {
         debug!("Application started");
         let mut terminal = tui::init()?;
-        App::new(CONFIG.wait()).run(&mut terminal)?;
+        App::new(&config).run(&mut terminal)?;
     }
 
     Ok(())

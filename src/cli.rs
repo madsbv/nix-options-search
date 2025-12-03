@@ -1,9 +1,7 @@
-use crate::config::{default_config_toml, CONFIG};
-use clap::{Parser, Subcommand};
+use crate::config::{default_config_file, default_config_toml, AppConfig, UserConfig};
+use clap::{Parser, Subcommand, ValueEnum};
 use color_eyre::eyre::Result;
 use std::{io::Write, path::PathBuf};
-
-use crate::cache::delete_cache_dir;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -66,14 +64,14 @@ fn default_config(write: bool, write_path: Option<&PathBuf>) -> Result<()> {
     Ok(())
 }
 
-fn clear_cache() -> Result<()> {
-    let Some(ref dir) = CONFIG.wait().cache_dir else {
+fn clear_cache(config: &AppConfig) -> Result<()> {
+    let Some(ref dir) = config.cache_dir else {
         println!("Cache directory is unset in your configuration, nothing to clear.");
         return Ok(());
     };
     let warning = format!("Deleting the following directory: {}", dir.display());
     if user_confirm(&warning)? {
-        return delete_cache_dir();
+        return Ok(std::fs::remove_dir_all(dir)?);
     }
     Ok(())
 }
