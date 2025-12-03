@@ -12,7 +12,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
-use tracing::{debug, instrument};
+use tl::VDom;
+use tracing::{debug, error, instrument};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum InputStatus {
@@ -239,19 +240,19 @@ impl Source {
     }
 
     #[instrument(err, level = "debug")]
-    fn get_version(&self) -> Result<String> {
-        // TODO: Try to avoid getting the whole document
-        let html = ureq::get(self.version_url())
-            .call()?
-            .body_mut()
-            .read_to_string()?;
+    fn get_version(&self, dom: Option<&VDom>) -> Result<String> {
+        if let (Some(dom), true) = (dom, self.url() == self.version_url()) {
+            parse_version(dom)
+        } else {
+            let html = ureq::get(self.version_url())
+                .call()?
+                .body_mut()
+                .read_to_string()?;
 
-        let dom = tl::parse(&html, tl::ParserOptions::default())?;
-
-        parse_version(&dom).ok_or(eyre!(
-            "Parsing version from html failed. Length of html document: {}",
-            html.len()
-        ))
+            let dom = tl::parse(&html, tl::ParserOptions::default())?;
+            parse_version(&dom)
+        }
+        .ok_or(eyre!("Parsing version from html failed"))
     }
 
     #[instrument(err, level = "debug")]
@@ -265,12 +266,21 @@ impl Source {
             .limit(30 * 1024 * 1024)
             .read_to_string()?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
+        let opts =
+            parse_options(&dom).map(|ok| ok.into_iter().map(std::convert::Into::into).collect())?;
 
-        let version = self.get_version()?;
+        let version = self.get_version(Some(&dom)).unwrap_or_else(|err| {
+            // Log error on failed version parsing, but keep running
+            error!(
+                "Parsing version number failed for {}: {err}",
+                self.inner.name
+            );
+            "No version number found".to_string()
+        });
+
         let mut data = SourceData {
             source: self.clone(),
-            opts: parse_options(&dom)
-                .map(|ok| ok.into_iter().map(std::convert::Into::into).collect())?,
+            opts,
             version,
         };
         data.nixos_unstable_declared_by_hack();
@@ -451,7 +461,7 @@ mod tests {
 
         for s in consts::BUILTIN_SOURCES.iter() {
             let s = Source::from(s);
-            let version = s.get_version().expect("Can get version");
+            let version = s.get_version(None).expect("Can get version");
             assert!(version.contains("Version"), "Version string: {version}");
         }
     }

@@ -2,6 +2,7 @@ use bitcode::{Decode, Encode};
 use color_eyre::eyre::{ensure, Result};
 use html2text::from_read_with_decorator;
 use html2text::render::TrivialDecorator;
+use lazy_regex::regex_find;
 use std::borrow::Cow;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
 use tracing::{trace, warn};
@@ -32,14 +33,41 @@ pub(crate) fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'
         .collect())
 }
 
+/// Different data sources expose version information in different ways, so we try multiple methods in hopes of eventually succeeding.
 pub(crate) fn parse_version<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
+    let sub = parse_version_by_subtitle(dom);
+    if sub.is_some() {
+        sub
+    } else {
+        parse_version_by_title(dom)
+    }
+}
+
+/// Try to find a version in the title of the page, using an "official" semver regex.
+/// This applies to the Nix Built-ins source in the defaults.
+fn parse_version_by_title<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
     let p = dom.parser();
-    let versions = dom
-        .query_selector(".subtitle")?
-        .filter_map(|nh| nh.get(p))
-        .map(|n| n.inner_html(p))
-        .collect::<Vec<_>>();
-    Some(versions.join("|"))
+    let title = dom.query_selector("title")?.next()?.get(p)?.inner_html(p);
+
+    // https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+    let semver = regex_find!(
+        r#"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"#,
+        &title
+    )?;
+    Some(format!("Version {semver}"))
+}
+
+/// Use the first `<subtitle>` contents, if such a field exists.
+/// Used for most of the default sources.
+fn parse_version_by_subtitle<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
+    let p = dom.parser();
+    Some(
+        dom.query_selector(".subtitle")?
+            .next()?
+            .get(p)?
+            .inner_html(p)
+            .to_string(),
+    )
 }
 
 /// A term and each section of its description, as a list of the top level html elements in each section.
