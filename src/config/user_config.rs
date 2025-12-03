@@ -63,7 +63,7 @@ impl UserConfig {
     }
 
     pub(super) fn build(config_file: &Path) -> Result<Self> {
-        Ok(Self::figment(&config_file).extract()?)
+        Ok(Self::figment(config_file).extract()?)
     }
 
     pub(crate) fn to_toml(&self) -> Result<String, toml::ser::Error> {

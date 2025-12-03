@@ -76,7 +76,7 @@ A configuration file in TOML format can be specified with the `--config` flag. O
 2. The OS standard config directory (usually `$HOME/.config/nox` on Linux, `$HOME/Library/Application Support/dev.mvil.nox` on Mac and `$HOME\AppData\Roaming\mvil\nox` on Windows),
 3. The current directory.
 
-Run `nox default-config` to print the default configuration, with documentation of all options, to `stdout`, or `nox default-config --write` to write this default configuration to the default location of `nox.toml` as defined above.
+Run `nox print-config default` to print the default configuration, with documentation of all options, to `stdout`, or `nox print-config --write default` to write this default configuration to the default location of `nox.toml` as defined above.
 
 The configuration supports enabling/disabling caching and logging, as well as customizing the policies for those; as well as customizing which tabs are shown in nox in what order, and adding custom tabs
 

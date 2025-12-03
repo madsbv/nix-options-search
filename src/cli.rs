@@ -21,29 +21,50 @@ pub(crate) enum Commands {
     /// Delete existing cache files
     ClearCache,
     /// Print the default configuration for nox
-    DefaultConfig {
+    PrintConfig {
         /// Write the default configuration to the default config location, or the path given to `--config` if set
         #[arg(short, long)]
         write: bool,
+        printable_config: Option<PrintableConfig>,
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default)]
+pub(crate) enum PrintableConfig {
+    #[default]
+    Current,
+    Default,
+}
+
 impl Commands {
-    pub(crate) fn run(&self, cli: &Cli) -> Result<()> {
+    #[allow(unused_variables)]
+    pub(crate) fn run(&self, cli: &Cli, config: &AppConfig) -> Result<()> {
         match self {
-            Commands::ClearCache => clear_cache(),
-            Commands::DefaultConfig { write } => default_config(*write, cli.config.as_ref()),
+            Commands::ClearCache => clear_cache(config),
+            Commands::PrintConfig {
+                write,
+                printable_config,
+            } => print_config(*write, *printable_config, config, cli.config.as_ref()),
         }
     }
 }
 
-fn default_config(write: bool, write_path: Option<&PathBuf>) -> Result<()> {
-    let toml = default_config_toml();
+fn print_config(
+    write: bool,
+
+    printable_config: Option<PrintableConfig>,
+    config: &AppConfig,
+    write_path: Option<&PathBuf>,
+) -> Result<()> {
+    let toml = match printable_config.unwrap_or_default() {
+        PrintableConfig::Default => default_config_toml(),
+        PrintableConfig::Current => UserConfig::from(config.clone()).to_toml()?,
+    };
 
     println!("{toml}");
     if write {
         // NOTE: The two user confirmations are deliberate to prevent unintended loss of existing config.
-        let default_config_file = crate::config::default_config_file();
+        let default_config_file = default_config_file();
         let write_path = write_path.unwrap_or(&default_config_file);
         let warning = format!("Writing default config to {}", write_path.display());
         if user_confirm(&warning)? {
