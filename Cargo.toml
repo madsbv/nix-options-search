@@ -30,7 +30,7 @@ ratatui = "0.29.0"
 strum = { version = "0.27.0", features = ["derive"] }
 tempfile = "3.23.0"
 tl = "0.7.8"
-tracing = "0.1.40"
+tracing = "0.1.43"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.22", features = ["ansi", "env-filter"] }
 tui-widget-list = "0.13.2"
