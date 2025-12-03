@@ -8,7 +8,7 @@ mod project_paths;
 mod user_config;
 pub(crate) use app_config::AppConfig;
 pub(crate) use project_paths::default_config_file;
-pub(crate) use user_config::{SourceConfig, UserConfig};
+pub(crate) use user_config::{default_config_toml, SourceConfig, UserConfig};
 
 /// The final source of truth on configurable aspects of the program.
 pub(crate) static CONFIG: OnceLock<AppConfig> = OnceLock::new();

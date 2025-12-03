@@ -31,8 +31,13 @@ pub(crate) static HOMEMANAGER_NIX_DARWIN: LazyLock<SourceConfig> = LazyLock::new
     url: "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml".to_string(),
     version_url: Some("https://nix-community.github.io/home-manager/".to_string()),
 });
+pub(crate) static NIX_BUILTINS: LazyLock<SourceConfig> = LazyLock::new(|| SourceConfig {
+    name: "Nix Built-ins".to_string(),
+    url: "https://nix.dev/manual/nix/2.28/language/builtins.html".to_string(),
+    version_url: None,
+});
 
-pub(crate) static BUILTIN_SOURCES: LazyLock<[&'static SourceConfig; 6]> = LazyLock::new(|| {
+pub(crate) static BUILTIN_SOURCES: LazyLock<[&'static SourceConfig; 7]> = LazyLock::new(|| {
     [
         &NIX_DARWIN,
         &NIX_OS,
@@ -40,5 +45,6 @@ pub(crate) static BUILTIN_SOURCES: LazyLock<[&'static SourceConfig; 6]> = LazyLo
         &HOMEMANAGER,
         &HOMEMANAGER_NIXOS,
         &HOMEMANAGER_NIX_DARWIN,
+        &NIX_BUILTINS,
     ]
 });

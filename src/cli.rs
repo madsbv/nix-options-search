@@ -1,4 +1,4 @@
-use crate::config::{UserConfig, CONFIG};
+use crate::config::{default_config_toml, UserConfig, CONFIG};
 use clap::{Parser, Subcommand};
 use color_eyre::eyre::Result;
 use std::{io::Write, path::PathBuf};
@@ -40,7 +40,7 @@ impl Commands {
 }
 
 fn default_config(write: bool, write_path: Option<&PathBuf>) -> Result<()> {
-    let toml = UserConfig::default().to_toml()?;
+    let toml = default_config_toml();
 
     println!("{toml}");
     if write {

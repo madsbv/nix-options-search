@@ -42,6 +42,7 @@ tracing-subscriber = { version = "0.3.22", features = ["ansi", "env-filter"] }
 tui-widget-list = "0.13.3"
 ureq = "3.0.5"
 zstd = "0.13.2"
+humantime-serde = "1.1.1"
 
 [profile.release]
 lto = true
