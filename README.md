@@ -56,14 +56,29 @@ outputs = inputs: {
 ```
 
 ### Prebuilt binaries
+
 See [Releases](https://github.com/madsbv/nix-options-search/releases).
 
 ## Usage
-Nox works mainly through fuzzy searching on option names. Navigate to the tab you want (nix-darwin, nixos, home-manager etc.) with arrows or <ctrl+h> or <ctrl+l>, then start typing!
 
-You can scroll through the results list with <up>/<down>/<ctrl+k>/<ctrl+j>. With an item highlighted, <ctrl+o> opens the file that defines that option in the source repository, while <enter> opens the online documentation page at the corresponding entry.
+Nox works mainly through fuzzy searching on option names. Navigate to the tab you want (nix-darwin, nixos, home-manager etc.) with arrows or `<ctrl+h>` or `<ctrl+l>`, then start typing!
 
-The first startup might take a while; the nixos documentation alone is ~20MB of data that has to be retrieved. After that however, the data is cached locally and only refreshed occasionally.
+You can scroll through the results list with `<up>`/`<down>`/`<ctrl+k>`/`<ctrl+j>`. With an item highlighted, `<ctrl+o>` opens the file that defines that option in the source repository, while `<enter>` opens the online documentation page at the corresponding entry.
+
+The first startup might take a while; the nixos documentation alone is ~20MB of data that has to be retrieved. After that however, the data is by default cached locally and only refreshed occasionally.
+
+## Configuration
+
+Nox supports some configuration through CLI flags, environment variables and a configuration file. To see the CLI flags, run `nox help`.
+
+A configuration file in TOML format can be specified with the `--config` flag. Otherwise, Nox looks for a `nox.toml` file in the following locations in order:
+1. The path specified by the environment variable `NOX_CONFIG` if set,
+2. The OS standard config directory (usually `$HOME/.config/nox` on Linux, `$HOME/Library/Application Support/dev.mvil.nox` on Mac and `$HOME\AppData\Roaming\mvil\nox` on Windows),
+3. The current directory.
+
+Run `nox default-config` to print the default configuration, with documentation of all options, to `stdout`, or `nox default-config --write` to write this default configuration to the default location of `nox.toml` as defined above.
+
+The configuration supports enabling/disabling caching and logging, as well as customizing the policies for those; as well as customizing which tabs are shown in nox in what order, and adding custom tabs
 
 ## Contributing
 

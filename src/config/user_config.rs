@@ -23,7 +23,7 @@ pub(crate) struct UserConfig {
     pub(super) cache_duration: std::time::Duration,
     pub(super) cache_dir: PathBuf,
     pub(super) enable_logging: bool,
-    /// The directives syntax: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#example-syntax
+    /// The directives syntax: <https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#example-syntax>
     pub(super) log_level: String,
     pub(super) log_file: PathBuf,
 }

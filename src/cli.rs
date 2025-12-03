@@ -1,4 +1,4 @@
-use crate::config::{default_config_toml, UserConfig, CONFIG};
+use crate::config::{default_config_toml, CONFIG};
 use clap::{Parser, Subcommand};
 use color_eyre::eyre::Result;
 use std::{io::Write, path::PathBuf};
