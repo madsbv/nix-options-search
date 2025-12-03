@@ -43,3 +43,20 @@ lto = true
 codegen-units = 1
 strip = true
 
+[profile.dev]
+opt-level = 1
+
+[lints.rust]
+deprecated-safe = {level = "deny", priority = 0}
+future-incompatible = {level = "deny", priority = 0}
+keyword-idents = {level = "deny", priority = 0}
+let-underscore = {level = "warn", priority = 0}
+unused = {level = "warn", priority = -1}
+
+[lints.clippy]
+all = {level = "warn", priority = -1}
+pedantic = {level = "warn", priority = -1}
+cargo = {level = "warn", priority = -1}
+unwrap_used = "warn"
+multiple_crate_versions = "deny"
+similar_names = "allow"
