@@ -29,8 +29,9 @@ pub fn restore() -> Result<()> {
 fn initialize_panic_handler() {
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
-        crossterm::execute!(std::io::stderr(), crossterm::terminal::LeaveAlternateScreen).unwrap();
-        crossterm::terminal::disable_raw_mode().unwrap();
+        crossterm::execute!(std::io::stderr(), crossterm::terminal::LeaveAlternateScreen)
+            .expect("Can leave alternate screen");
+        crossterm::terminal::disable_raw_mode().expect("Can disable raw mode");
         original_hook(panic_info);
     }));
 }

@@ -4,11 +4,10 @@ use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use lazy_regex::regex_replace_all;
-use ratatui::widgets::Padding;
 use ratatui::{
     prelude::*,
     symbols::border,
-    widgets::{block::Block, Borders, Paragraph, Tabs},
+    widgets::{block::Block, Borders, Padding, Paragraph, Tabs},
 };
 use std::io;
 use std::time::Duration;

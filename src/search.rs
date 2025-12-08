@@ -283,7 +283,8 @@ impl Source {
         // Cache is outdated or there was a reading error
         if let Ok(data) = self.get_online_data() {
             // We can get the opts from the web and update the cache
-            let _ = self.store_cache(&data);
+            // Ignore the result
+            drop(self.store_cache(&data));
             return Ok(data);
         }
         // Cache is outdated or broken and we're effectively offline

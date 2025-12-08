@@ -1,11 +1,10 @@
-use std::borrow::Cow;
-
 use bitcode::{Decode, Encode};
 use color_eyre::eyre::{ensure, Result};
 use html2text::from_read_with_decorator;
 use html2text::render::TrivialDecorator;
+use std::borrow::Cow;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
-use tracing::debug;
+use tracing::{debug, warn};
 
 /// Structure of data/index.html (nix-darwin): Each option header is in a `<dt>`, associated description, type, default, example and link to docs is in a `<dd>`.
 /// This method assumes that there's an equal number of `<dt>` and `<dd>` tags, and that they come paired up one after the other. If the number of `<dt>` and `<dd>` tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
@@ -26,7 +25,7 @@ pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> 
     );
 
     Ok(std::iter::zip(dt_tags, dd_tags)
-        .map(|(dt, dd)| OptParser::new(dt, dd, p).parse())
+        .filter_map(|(dt, dd)| OptParser::new(dt, dd, p).parse())
         .collect())
 }
 
@@ -221,9 +220,15 @@ impl<'dom> OptParser<'dom> {
         OptParser { dt, dd, p }
     }
 
-    pub fn parse(self) -> OptData<'dom> {
-        let mut tag_slices = self.split_tags();
-        let name = self.get_name();
+    pub fn parse(self) -> Option<OptData<'dom>> {
+        let Some(mut tag_slices) = self.split_tags() else {
+            warn!("Failed to split dd tags on a node");
+            return None;
+        };
+        let name = self.get_name().unwrap_or_else(|| {
+            warn!("Failed to parse option name");
+            vec![]
+        });
         let var_type = self.get_field_by_separator(&mut tag_slices, OptParser::SEPARATOR_TAGS[0]);
         let default = self.get_field_by_separator(&mut tag_slices, OptParser::SEPARATOR_TAGS[1]);
         let example = self.get_field_by_separator(&mut tag_slices, OptParser::SEPARATOR_TAGS[2]);
@@ -233,7 +238,7 @@ impl<'dom> OptParser<'dom> {
             .into_iter()
             .fold(vec![], |acc, e| [acc, e].concat());
 
-        OptData {
+        Some(OptData {
             name,
             description,
             var_type,
@@ -241,7 +246,7 @@ impl<'dom> OptParser<'dom> {
             example,
             declared_by,
             p: self.p,
-        }
+        })
     }
 
     const SEPARATOR_TAGS: [&'static str; 4] = [
@@ -252,16 +257,16 @@ impl<'dom> OptParser<'dom> {
     ];
 
     // Might want to unify this with self.get_field().
-    fn get_name(&'_ self) -> Vec<HTMLTag<'dom>> {
-        self.dt
-            .get(self.p)
-            .unwrap()
-            .children() // <- Creates owned struct tl::Children
-            .unwrap()
-            .top()
-            .iter()
-            .filter_map(|n| n.get(self.p)?.as_tag().cloned())
-            .collect::<Vec<_>>()
+    fn get_name(&'_ self) -> Option<Vec<HTMLTag<'dom>>> {
+        Some(
+            self.dt
+                .get(self.p)?
+                .children()? // <- Creates owned struct tl::Children
+                .top()
+                .iter()
+                .filter_map(|n| n.get(self.p)?.as_tag().cloned())
+                .collect::<Vec<_>>(),
+        )
     }
 
     fn get_field_by_separator(
@@ -279,14 +284,12 @@ impl<'dom> OptParser<'dom> {
         vec![]
     }
 
-    fn split_tags(&self) -> Vec<Vec<HTMLTag<'dom>>> {
+    fn split_tags(&self) -> Option<Vec<Vec<HTMLTag<'dom>>>> {
         // Can we simplify this unholy incantation?
         let dd_tags = self
             .dd
-            .get(self.p)
-            .unwrap()
-            .children() // <- Creates owned struct tl::Children
-            .unwrap()
+            .get(self.p)?
+            .children()? // <- Creates owned struct tl::Children
             .top()
             .iter()
             .filter_map(|n| n.get(self.p)?.as_tag())
@@ -295,17 +298,19 @@ impl<'dom> OptParser<'dom> {
         // split_inclusive puts the matched element at the end of the previous slice. We want the matched element at the beginning of the slice. To fix, we reverse the entire list, split_inclusive, then reverse both the outer list and each of the inner lists created by split_inclusive.
         let rev_tags: Vec<_> = dd_tags.into_iter().rev().collect();
         // vector of vectors, in the right order
-        rev_tags
-            // Split slice into slice of slices with separator_tags as terminators
-            .split_inclusive(|t| {
-                OptParser::SEPARATOR_TAGS
-                    .iter()
-                    .any(|a| t.inner_html(self.p).contains(a))
-            })
-            // Reverse outer
-            .rev()
-            // Reverse each inner and clone
-            .map(|s| s.iter().rev().copied().cloned().collect::<Vec<_>>())
-            .collect::<Vec<_>>()
+        Some(
+            rev_tags
+                // Split slice into slice of slices with separator_tags as terminators
+                .split_inclusive(|t| {
+                    OptParser::SEPARATOR_TAGS
+                        .iter()
+                        .any(|a| t.inner_html(self.p).contains(a))
+                })
+                // Reverse outer
+                .rev()
+                // Reverse each inner and clone
+                .map(|s| s.iter().rev().copied().cloned().collect::<Vec<_>>())
+                .collect::<Vec<_>>(),
+        )
     }
 }
