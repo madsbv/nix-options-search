@@ -32,12 +32,6 @@
         devShells.default = pkgs.mkShell {
           CARGO_INSTALL_ROOT = "${toString ./.}/.cargo";
 
-          buildInputs = with pkgs; [
-            cargo
-            rustc
-            git
-          ];
-
           packages = with pkgs; [
             deadnix
             statix
