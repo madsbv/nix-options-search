@@ -34,7 +34,7 @@ tl = "0.7.8"
 tracing = "0.1.43"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.22", features = ["ansi", "env-filter"] }
-tui-widget-list = "0.13.2"
+tui-widget-list = "0.13.3"
 ureq = "3.0.5"
 zstd = "0.13.2"
 
