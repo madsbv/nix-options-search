@@ -2,6 +2,7 @@ use bitcode::{Decode, Encode};
 use color_eyre::eyre::{eyre, Result};
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,8 +10,8 @@ use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crate::logging::cache_dir;
 use crate::opt_data::{parse_options, parse_version, OptText};
+use crate::project_paths::cache_dir;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InputStatus {
@@ -152,7 +153,9 @@ fn new_searcher(
     (nuc, handle)
 }
 
-#[derive(Debug, Copy, Clone, Encode, Decode, PartialEq, strum::VariantArray)]
+#[derive(
+    Debug, Copy, Clone, Encode, Decode, PartialEq, strum::VariantArray, Deserialize, Serialize,
+)]
 pub enum Source {
     NixDarwin,
     NixOS,
