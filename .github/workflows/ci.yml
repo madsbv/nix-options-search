@@ -149,7 +149,7 @@ jobs:
         # https://github.com/jonhoo/fantoccini/blob/fde336472b712bc7ebf5b4e772023a7ba71b2262/Cargo.toml#L47-L49.
         # This action is run on ubuntu with the stable toolchain, as it is not expected to fail
         runs-on: ubuntu-latest
-        name: ubuntu / stable / minimal-versions
+        name: ubuntu / stable / direct-minimal-versions
         steps:
             - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
               with:
@@ -159,14 +159,14 @@ jobs:
               uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
               with:
                   toolchain: stable
-            - name: Install nightly for -Zminimal-versions
+            - name: Install nightly for -Zdirect-minimal-versions
               uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
               with:
                   toolchain: nightly
             - name: rustup default stable
               run: rustup default stable
-            - name: cargo update -Zminimal-versions
-              run: cargo +nightly update -Zminimal-versions
+            - name: cargo update -Zdirect-minimal-versions
+              run: cargo +nightly update -Zdirect-minimal-versions
             - name: cargo test
               run: cargo test --locked --all-features --all-targets
 
