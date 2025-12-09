@@ -27,6 +27,7 @@ jobs:
             - name: cargo generate-lockfile
               if: hashFiles('Cargo.lock') == ''
               run: cargo generate-lockfile
+            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
             - name: cargo test --locked
               run: cargo test --locked --all-features --all-targets
     # https://twitter.com/alcuadrado/status/1571291687837732873
@@ -54,6 +55,7 @@ jobs:
             - name: cargo update
               if: hashFiles('Cargo.lock') != ''
               run: cargo update
+            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
             - name: cargo test
               if: hashFiles('Cargo.lock') != ''
               run: cargo test --locked --all-features --all-targets

@@ -1,4 +1,4 @@
-name: GitHub Actions Security Analysis with zizmor 🌈
+name: Zizmor
 
 on:
     push:
@@ -8,9 +8,13 @@ on:
 
 permissions: {}
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
 jobs:
     zizmor:
         runs-on: ubuntu-latest
+        name: zizmor
         permissions:
             security-events: write # required to upload results to Github Advanced Security
         steps:
@@ -18,6 +22,5 @@ jobs:
               uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
               with:
                   persist-credentials: false
-
             - name: Run zizmor 🌈
               uses: zizmorcore/zizmor-action@e639db99335bc9038abc0e066dfcd72e23d26fb4 # v0.3.0

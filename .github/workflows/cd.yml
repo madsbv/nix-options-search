@@ -8,6 +8,9 @@ on:
         tags:
             - "[v]?[0-9]+.[0-9]+.[0-9]+"
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
 jobs:
     publish:
         name: Publishing for ${{ matrix.job.os }}
@@ -66,9 +69,12 @@ jobs:
                   command: build
                   target: ${{ matrix.platform.target }}
                   args: "--locked --release"
-                  strip: false
+                  strip: false # Cargo does the stripping: https://github.com/houseabsolute/actions-rust-cross/issues/41
                   toolchain: ${{ matrix.rust }}
+                  # Avoid caches for release
                   use-rust-cache: false
+                  cache-cross-binary: false
+                  cross-version: 49cd054de9b832dfc11a4895c72b0aef533b5c6a
             - name: Install Rust toolchain
               if: ${{ ! matrix.job.use-cross }}
               uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
@@ -77,9 +83,11 @@ jobs:
                   targets: ${{ matrix.job.target }}
             - name: Build binary
               if: ${{ ! matrix.job.use-cross }}
+              # zizmor: ignore[template-injection]
               run: cargo build --locked --release --target=${{ matrix.job.target}}
             - name: Packaging final binary
               shell: bash
+              # zizmor: ignore[template-injection]
               run: |
                   cd target/${{ matrix.job.target }}/release
 
