@@ -81,6 +81,7 @@ jobs:
                   reporter: "github-pr-check"
                   github_token: ${{ secrets.GITHUB_TOKEN }}
                   clippy_flags: --all-targets --all-features --workspace -- -D warnings
+                  tool_name: ${{ matrix.toolchain  }} / clippy report
 
     docs:
         name: Docs
