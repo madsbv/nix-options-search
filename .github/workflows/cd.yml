@@ -24,37 +24,21 @@ jobs:
                       target: x86_64-apple-darwin
                       architecture: x86_64
                       binary-postfix: ""
-                      use-cross: false
                     - os: macos-latest
                       os-name: macos
                       target: aarch64-apple-darwin
                       architecture: arm64
                       binary-postfix: ""
-                      use-cross: false
                     - os: ubuntu-latest
                       os-name: linux
                       target: x86_64-unknown-linux-gnu
                       architecture: x86_64
                       binary-postfix: ""
-                      use-cross: false
                     - os: windows-latest
                       os-name: windows
                       target: x86_64-pc-windows-msvc
                       architecture: x86_64
                       binary-postfix: ".exe"
-                      use-cross: false
-                    - os: ubuntu-latest
-                      os-name: linux
-                      target: aarch64-unknown-linux-gnu
-                      architecture: arm64
-                      binary-postfix: ""
-                      use-cross: true
-                    - os: ubuntu-latest
-                      os-name: linux
-                      target: i686-unknown-linux-gnu
-                      architecture: i686
-                      binary-postfix: ""
-                      use-cross: true
 
         steps:
             - name: Checkout repository
@@ -62,27 +46,12 @@ jobs:
               with:
                   submodules: true
                   persist-credentials: false
-            - name: Cross-build binary
-              if: ${{ matrix.job.use-cross }}
-              uses: houseabsolute/actions-rust-cross@9a1618ffb70e8374ab5f48fcccea3ebeacf57971 # tag=v1.0.5
-              with:
-                  command: build
-                  target: ${{ matrix.platform.target }}
-                  args: "--locked --release"
-                  strip: false # Cargo does the stripping: https://github.com/houseabsolute/actions-rust-cross/issues/41
-                  toolchain: ${{ matrix.rust }}
-                  # Avoid caches for release
-                  use-rust-cache: false
-                  cache-cross-binary: false
-                  cross-version: 49cd054de9b832dfc11a4895c72b0aef533b5c6a
             - name: Install Rust toolchain
-              if: ${{ ! matrix.job.use-cross }}
               uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
               with:
                   toolchain: stable
                   targets: ${{ matrix.job.target }}
             - name: Build binary
-              if: ${{ ! matrix.job.use-cross }}
               # zizmor: ignore[template-injection]
               run: cargo build --locked --release --target=${{ matrix.job.target}}
             - name: Packaging final binary
