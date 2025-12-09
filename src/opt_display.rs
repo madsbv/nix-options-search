@@ -89,10 +89,11 @@ impl Widget for OptListItem {
 }
 
 impl OptListItem {
+    #[allow(clippy::manual_is_multiple_of)]
     pub fn pre_render(&mut self, context: &tui_widget_list::ListBuildContext) -> u16 {
         self.style = if context.is_selected {
             Style::default().bg(Color::DarkGray)
-        } else if context.index.is_multiple_of(2) {
+        } else if context.index % 2 == 0 {
             Style::default()
         } else {
             Style::default().bg(Color::Indexed(236))

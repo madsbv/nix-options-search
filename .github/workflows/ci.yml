@@ -107,7 +107,7 @@ jobs:
         # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
         strategy:
             matrix:
-                msrv: ["1.59.0"] # Profile `strip` option stabilized in 1.59
+                msrv: ["1.85.1"] # html2text@0.16.4 requires rustc 1.85
         name: ubuntu / ${{ matrix.msrv }}
         steps:
             - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
