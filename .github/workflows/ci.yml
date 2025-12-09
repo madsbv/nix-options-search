@@ -1,5 +1,7 @@
 name: CI # Continuous Integration
 
+permissions:
+    contents: read
 on:
     pull_request:
     push:
@@ -11,14 +13,23 @@ concurrency:
     cancel-in-progress: true
 jobs:
     test:
-        name: Test ubuntu / stable --all-features
         runs-on: ubuntu-latest
+        name: ubuntu / ${{ matrix.toolchain }} --all-features
+        strategy:
+            matrix:
+                # run on stable and beta to ensure that tests won't break on the next version of the rust
+                # toolchain
+                toolchain: [stable, beta]
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v6
-            - name: Install stable
-              uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
+              uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
+              with:
+                  submodules: true
+                  persist-credentials: false
+            - name: Install ${{ matrix.toolchain }}
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: ${{ matrix.toolchain }}
             - name: cargo generate-lockfile
               # enable this ci template to run regardless of whether the lockfile is checked in or not
               if: hashFiles('Cargo.lock') == ''
@@ -26,48 +37,140 @@ jobs:
             # https://twitter.com/jonhoo/status/1571290371124260865
             - name: cargo test --locked --all-features
               run: cargo test --locked --all-features --all-targets
-
+            # https://github.com/rust-lang/cargo/issues/6669
+            - name: cargo test --doc
+              run: cargo test --locked --all-features --doc
     rustfmt:
         name: Rustfmt
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v6
-            - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@stable
+              uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
               with:
+                  submodules: true
+                  persist-credentials: false
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: stable
                   components: rustfmt
-            - uses: Swatinem/rust-cache@v2
             - name: Check formatting
               run: cargo fmt --all --check
-
     clippy:
-        name: Clippy
         runs-on: ubuntu-latest
+        name: ${{ matrix.toolchain }} / clippy
+        permissions:
+            contents: read
+            checks: write # For reviewdog through giraffate/clippy-action
+
+        strategy:
+            fail-fast: false
+            matrix:
+                # Get early warning of new lints which are regularly introduced in beta channels.
+                toolchain: [stable, beta]
         steps:
-            - name: Checkout repository
-              uses: actions/checkout@v6
-            - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@stable
+            - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
               with:
+                  submodules: true
+                  persist-credentials: false
+            - name: Install ${{ matrix.toolchain }}
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: ${{ matrix.toolchain }}
                   components: clippy
-            - uses: Swatinem/rust-cache@v2
-            - name: Clippy check
-              run: cargo clippy --all-targets --all-features --workspace -- -D warnings
+            - name: cargo clippy
+              uses: giraffate/clippy-action@13b9d32482f25d29ead141b79e7e04e7900281e0 # tag=v1.0.1
+              with:
+                  reporter: "github-pr-check"
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  clippy_flags: --all-targets --all-features --workspace -- -D warnings
 
     docs:
         name: Docs
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v6
-            - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
+              uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
+              with:
+                  submodules: true
+                  persist-credentials: false
+            - name: Install stable
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: stable
             - name: Check documentation
               env:
                   RUSTDOCFLAGS: -D warnings
               run: cargo doc --no-deps --document-private-items --all-features --workspace --examples
+    msrv:
+        # check that we can build using the minimal rust version that is specified by this crate
+        runs-on: ubuntu-latest
+        # we use a matrix here just because env can't be used in job names
+        # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
+        strategy:
+            matrix:
+                msrv: ["1.56.1"] # 2021 edition requires 1.56
+        name: ubuntu / ${{ matrix.msrv }}
+        steps:
+            - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
+              with:
+                  submodules: true
+                  persist-credentials: false
+            - name: Install ${{ matrix.msrv }}
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: ${{ matrix.msrv }}
+            - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # tag=v4.3.0
+              with:
+                  path: ~/.cargo
+                  key: ${{ runner.os }}-cargo
+            - name: cargo +${{ matrix.msrv }} check
+              run: cargo check
+
+    minimal:
+        # This action chooses the oldest version of the dependencies permitted by Cargo.toml to ensure
+        # that this crate is compatible with the minimal version that this crate and its dependencies
+        # require. This will pickup issues where this create relies on functionality that was introduced
+        # later than the actual version specified (e.g., when we choose just a major version, but a
+        # method was added after this version).
+        #
+        # This particular check can be difficult to get to succeed as often transitive dependencies may
+        # be incorrectly specified (e.g., a dependency specifies 1.0 but really requires 1.1.5). There
+        # is an alternative flag available -Zdirect-minimal-versions that uses the minimal versions for
+        # direct dependencies of this crate, while selecting the maximal versions for the transitive
+        # dependencies. Alternatively, you can add a line in your Cargo.toml to artificially increase
+        # the minimal dependency, which you do with e.g.:
+        # ```toml
+        # # for minimal-versions
+        # [target.'cfg(any())'.dependencies]
+        # openssl = { version = "0.10.55", optional = true } # needed to allow foo to build with -Zminimal-versions
+        # ```
+        # The optional = true is necessary in case that dependency isn't otherwise transitively required
+        # by your library, and the target bit is so that this dependency edge never actually affects
+        # Cargo build order. See also
+        # https://github.com/jonhoo/fantoccini/blob/fde336472b712bc7ebf5b4e772023a7ba71b2262/Cargo.toml#L47-L49.
+        # This action is run on ubuntu with the stable toolchain, as it is not expected to fail
+        runs-on: ubuntu-latest
+        name: ubuntu / stable / minimal-versions
+        steps:
+            - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
+              with:
+                  submodules: true
+                  persist-credentials: false
+            - name: Install stable
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: stable
+            - name: Install nightly for -Zminimal-versions
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: nightly
+            - name: rustup default stable
+              run: rustup default stable
+            - name: cargo update -Zminimal-versions
+              run: cargo +nightly update -Zminimal-versions
+            - name: cargo test
+              run: cargo test --locked --all-features --all-targets
 
     os-check:
         # run cargo test on mac and windows
@@ -78,25 +181,31 @@ jobs:
             matrix:
                 os: [macos-latest, windows-latest]
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
               with:
                   submodules: true
+                  persist-credentials: false
             - name: Install stable
-              uses: dtolnay/rust-toolchain@stable
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: stable
             - name: cargo generate-lockfile
               if: hashFiles('Cargo.lock') == ''
               run: cargo generate-lockfile
-            - uses: Swatinem/rust-cache@v2
             - name: cargo test
               # Skip time-consuming online tests
               run: cargo test --locked --all-targets
 
     nix:
         runs-on: ubuntu-latest
+        name: nix build
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v6
+              uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
+              with:
+                  submodules: true
+                  persist-credentials: false
             - name: Install nix
-              uses: DeterminateSystems/nix-installer-action@main
+              uses: DeterminateSystems/determinate-nix-action@b3e3f405539b332fcb96794525f35fb10c230baa
             - name: Build package with nix
               run: nix build .
