@@ -1,15 +1,33 @@
 version: 2
 updates:
-  - package-ecosystem: "cargo"
-    # Look for `Cargo.toml` and `Cargo.lock` in the root directory
-    directory: "/"
-    # Check for updates every Monday
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    # Check for updates every Monday
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+    - package-ecosystem: "cargo"
+      # Look for `Cargo.toml` and `Cargo.lock` in the root directory
+      directory: "/"
+      # Check for updates every Monday
+      schedule:
+          interval: "weekly"
+      groups:
+          # Group minor and patch updates into a single pull request
+          minor-updates:
+              applies-to: version-updates
+              update-types:
+                  - "minor"
+                  - "patch"
+      open-pull-requests-limit: 10
+      cooldown:
+          default-days: 7
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      # Check for updates every Monday
+      schedule:
+          interval: "weekly"
+      groups:
+          # Group minor and patch updates into a single pull request
+          minor-updates:
+              applies-to: version-updates
+              update-types:
+                  - "minor"
+                  - "patch"
+      open-pull-requests-limit: 10
+      cooldown:
+          default-days: 7

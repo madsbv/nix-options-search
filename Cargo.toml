@@ -8,6 +8,7 @@ categories = ["command-line-utilities"]
 repository = "https://github.com/madsbv/nix-options-search"
 license = "MIT OR Apache-2.0"
 include = ["src/*", "data/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
+rust-version = "1.85.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
