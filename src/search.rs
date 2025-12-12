@@ -357,7 +357,9 @@ impl SourceData {
 #[cfg(test)]
 mod tests {
 
+    #[cfg(feature = "online-tests")]
     use super::*;
+    #[cfg(feature = "online-tests")]
     use crate::config::consts;
 
     #[cfg(feature = "online-tests")]

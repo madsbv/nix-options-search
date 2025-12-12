@@ -88,7 +88,8 @@ auto_refresh_cache = true
 cache_duration = "1week"
 
 # Directory in which to store cached results
-cache_dir = "{}"
+# Note that in TOML, strings in "double quotes" (basic strings) and in 'single quotes' (liteal strings) behave differently: certain characters like the backslash must be escaped in basic strings, but not in literal strings ('\').
+cache_dir = '{}'
 
 # Whether to enable logging to file (mostly useful for debugging during development)
 enable_logging = true
@@ -98,7 +99,7 @@ enable_logging = true
 log_level = "error"
 
 # Location of the log file, if used.
-log_file = "{}"
+log_file = '{}'
 
 ### Config sources ###
 # Each [[sources]] entry defines a separate config source and corresponding tab in nox.
@@ -157,41 +158,4 @@ url = "https://nix.dev/manual/nix/2.28/language/builtins.html"
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Assure that the documented default config that might be printed for the user matches the internally used `UserConfig::default()`.
-    #[test]
-    fn test_documented_default_config_is_correct() -> Result<()> {
-        let internal_defaults = UserConfig::default();
-        let documented_defaults = toml::from_str::<UserConfig>(&default_config_toml())?;
-        // Assert that internal_defaults and documented_defaults are equal, but in such a way that it's easier to read the differences
-        if internal_defaults != documented_defaults {
-            assert_eq!(internal_defaults.use_cache, documented_defaults.use_cache);
-            assert_eq!(
-                internal_defaults.auto_refresh_cache,
-                documented_defaults.auto_refresh_cache
-            );
-            assert_eq!(internal_defaults.cache_dir, documented_defaults.cache_dir);
-            assert_eq!(
-                internal_defaults.cache_duration,
-                documented_defaults.cache_duration
-            );
-            assert_eq!(
-                internal_defaults.enable_logging,
-                documented_defaults.enable_logging
-            );
-            assert_eq!(internal_defaults.log_level, documented_defaults.log_level);
-            assert_eq!(internal_defaults.log_file, documented_defaults.log_file);
-            if internal_defaults.sources != documented_defaults.sources {
-                eprintln!("internal_defaults.sources:");
-                eprintln!("{:#?}", internal_defaults.sources);
-                eprintln!("documented_defaults.sources:");
-                eprintln!("{:#?}", documented_defaults.sources);
-                panic!("internal_defaults.sources and documented_defaults.sources are different");
-            }
-            assert_eq!(internal_defaults, documented_defaults);
-        }
-        Ok(())
-    }
-}
+mod tests;
