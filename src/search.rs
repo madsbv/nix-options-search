@@ -1,7 +1,7 @@
 use crate::config::SourceConfig;
 use crate::parsing::{parse_options, parse_version, OptText};
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{eyre, Context, Result};
 use lazy_regex::regex_replace_all;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
@@ -204,6 +204,7 @@ impl Source {
         cache_dir.join(format!("{self}.zst"))
     }
 
+    #[instrument(err, level = "warn")]
     fn store_cache_to(data: &SourceData, path: &Path) -> Result<()> {
         let bitdata = bitcode::encode(data);
         let zstddata =
@@ -216,6 +217,7 @@ impl Source {
         Source::store_cache_to(data, &self.cache_path(cache_dir))
     }
 
+    #[instrument(err, level = "warn")]
     fn load_cache_from(path: &Path) -> Result<SourceData> {
         let zstddata = std::fs::read(path)?;
         let bitdata = zstd::stream::decode_all(zstddata.as_slice())?;
@@ -287,40 +289,56 @@ impl Source {
         Ok(data)
     }
 
-    // We could return a Result or Option to account for possible failure modes, but currently I'm not sure what I'd use it for.
-    // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
+    #[instrument(err, level = "debug")]
     fn get_data(
         &self,
         cache_dir: Option<&Path>,
         cache_duration: Option<Duration>,
     ) -> Result<SourceData> {
+        // 0. No local cache is specified
         let Some(cache_dir) = cache_dir else {
             return self.get_online_data();
         };
-        let cache_validity = self.cache_is_current(cache_dir, cache_duration);
-        if let Ok(true) = cache_validity {
-            if let Ok(data) = self.load_cache(cache_dir) {
-                // Happy path: Just use existing cache
-                return Ok(data);
-            }
+
+        // 1. Try to load a fresh, matching cache
+        if let Ok(data) = self.try_load_valid_cache(cache_dir, cache_duration) {
+            return Ok(data);
         }
-        // Cache is outdated or there was a reading error
+
+        // 2. Cache is outdated, doesn't match the current SourceConfig, or there was an IO error, get fresh data online
         if let Ok(data) = self.get_online_data() {
-            // We can get the opts from the web and update the cache
-            // Ignore the result
+            // Update the cache, ignoring any errors
             drop(self.store_cache(&data, cache_dir));
             return Ok(data);
         }
-        // Cache is outdated or broken and we're effectively offline
-        if let Ok(false) = cache_validity {
-            // If the cache was just outdated, returning the outdated cache is better than nothing
-            // If loading the cache fails, other Sources might still work, so avoid crashing the program by unwrapping.
-            if let Ok(data) = self.load_cache(cache_dir) {
+
+        // 3. Cache is outdated or broken and we're effectively offline
+        self.try_load_outdated_cache_by_url_only(cache_dir)
+            .wrap_err(format!("Failed to get data for {self}"))
+    }
+
+    fn try_load_valid_cache(
+        &self,
+        cache_dir: &Path,
+        cache_duration: Option<Duration>,
+    ) -> Result<SourceData> {
+        if self.cache_is_current(cache_dir, cache_duration)? {
+            let data = self.load_cache(cache_dir)?;
+            if data.source == *self {
+                // The cached data is for the correct Source and is fresh
                 return Ok(data);
             }
         }
-        // TODO: Embed precomputed cache at compile time to use as a last ditch fallback?
-        Err(eyre!("Failed to get data for {self}"))
+        Err(eyre!("Cache is outdated or for the wrong Source"))
+    }
+
+    fn try_load_outdated_cache_by_url_only(&self, cache_dir: &Path) -> Result<SourceData> {
+        let data = self.load_cache(cache_dir)?;
+        if data.source.inner.url == *self.inner.url {
+            // The cached data at least comes from the right place, but may be outdated, and version_urls might not match
+            return Ok(data);
+        }
+        Err(eyre!("Cache doesn't exist or is for the wrong Source url"))
     }
 }
 
