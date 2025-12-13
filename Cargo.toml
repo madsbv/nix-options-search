@@ -20,24 +20,29 @@ path = "src/main.rs"
 online-tests = []
 
 [dependencies]
-bitcode = "0.6.4"
+bitcode = "0.6.7"
+clap = { version = "4.5.51", features = ["derive"] }
 color-eyre = "0.6.3"
 crossterm = "0.29.0"
 directories = "6.0.0"
 html2text = "0.16.5"
 lazy-regex = { version = "3.4.2", features = ["lite"] }
+figment = { version = "0.10.19", features = ["env", "toml"] }
 nucleo = "0.5.0"
 open = "5.3.3"
 ratatui = "0.29.0"
+serde = { version = "1.0.228", features = ["derive"] }
 strum = { version = "0.27.0", features = ["derive"] }
 tempfile = "3.23.0"
 tl = "0.7.8"
 tracing = "0.1.43"
+toml = "0.9.8"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.22", features = ["ansi", "env-filter"] }
 tui-widget-list = "0.13.3"
 ureq = "3.0.5"
 zstd = "0.13.2"
+humantime-serde = "1.1.1"
 
 [profile.release]
 lto = true

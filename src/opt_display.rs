@@ -1,4 +1,4 @@
-use crate::opt_data::OptText;
+use crate::parsing::OptText;
 use ratatui::{
     prelude::*,
     widgets::{Block, Padding, Paragraph, Wrap},

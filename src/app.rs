@@ -1,9 +1,9 @@
-use crate::opt_data::OptText;
+use crate::config::AppConfig;
 use crate::opt_display::OptListItem;
+use crate::parsing::OptText;
 use crate::search::{Finder, InputStatus, Source};
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use lazy_regex::regex_replace_all;
 use ratatui::{
     prelude::*,
     symbols::border,
@@ -15,7 +15,7 @@ use tracing::debug;
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
 // XXX: Optimization idea: Have a "results cache stack" where, each time search_string is appended to, we push the current search results; and when Backspace is pressed, instead of re-searching we just pop the stack. On tab change, we have to clear the stack. Might not be worth it.
-pub struct App {
+pub(crate) struct App {
     search_string: String,
     pages: Vec<Finder>,
     // An integer in `0..self.pages.len()`
@@ -28,17 +28,20 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> App {
+    pub(crate) fn new(config: &'static AppConfig) -> App {
         App {
             search_string: String::new(),
-            pages: vec![
-                Finder::new(Source::NixDarwin),
-                Finder::new(Source::NixOS),
-                Finder::new(Source::NixOSUnstable),
-                Finder::new(Source::HomeManager),
-                Finder::new(Source::HomeManagerNixOS),
-                Finder::new(Source::HomeManagerNixDarwin),
-            ],
+            pages: config
+                .sources
+                .iter()
+                .map(|s| {
+                    Finder::new(
+                        Source::from(s),
+                        config.cache_dir.as_deref(),
+                        config.cache_duration,
+                    )
+                })
+                .collect(),
             active_page: 0,
             input_status: InputStatus::Change,
             result_list_state: ListState::default(),
@@ -69,14 +72,8 @@ impl App {
     }
 }
 
-impl Default for App {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl App {
-    pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
+    pub(crate) fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
             self.handle_events()?;
@@ -150,7 +147,7 @@ impl App {
             (KeyCode::Char('o'), KeyModifiers::CONTROL) => {
                 let source = &self.pages[self.active_page];
                 if let Some(ref item) = self.selected_item {
-                    open_url(&source.url_to(item));
+                    open_url(&source.doc_url_to(item));
                 } else {
                     open_url(source.url());
                 }
@@ -158,15 +155,7 @@ impl App {
             (KeyCode::Enter, _) => {
                 if let Some(ref item) = self.selected_item {
                     for u in &item.declared_by_urls {
-                        if self.pages[self.active_page].source() == Source::NixOSUnstable {
-                            // In the runup to new nixos releases, the nixos-unstable documentation starts linking to the upcoming release repo before the repo itself has been created, so we have to rewrite the links to point to the proper unstable repo.
-                            // TODO: Move this logic to the `Source` parsing itself instead of here.
-                            let c =
-                                regex_replace_all!(r#"release-\d{2}\.\d{2}"#, u, "nixos-unstable");
-                            open_url(&c);
-                        } else {
-                            open_url(u);
-                        }
+                        open_url(u);
                     }
                 }
                 // TODO: Default behaviour if there's no url? Pop up an error message somehow?
@@ -296,11 +285,14 @@ impl Widget for &mut App {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
     use super::*;
 
     #[test]
     fn modify_search_string() {
-        let mut app = App::new();
+        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
+        let mut app = App::new(&CONFIG);
 
         app.handle_key_event(KeyCode::Char('w').into());
         assert_eq!(app.search_string, "w".to_string());
@@ -312,7 +304,8 @@ mod tests {
 
     #[test]
     fn switch_tabs() {
-        let mut app = App::new();
+        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
+        let mut app = App::new(&CONFIG);
         for _ in 0..app.active_page {
             app.handle_key_event(KeyCode::Left.into());
         }
@@ -331,7 +324,8 @@ mod tests {
 
     #[test]
     fn quit() {
-        let mut app = App::new();
+        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
+        let mut app = App::new(&CONFIG);
         assert!(!app.exit);
         app.handle_key_event(KeyCode::Esc.into());
         assert!(app.exit);
@@ -341,7 +335,8 @@ mod tests {
     #[test]
     #[cfg(feature = "online-tests")]
     fn search_each_tab() {
-        let mut app = App::new();
+        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
+        let mut app = App::new(&CONFIG);
         // Make sure we start at the first tab
         for _ in 0..app.active_page {
             app.handle_key_event(KeyCode::Left.into());

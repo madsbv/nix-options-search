@@ -2,14 +2,16 @@ use bitcode::{Decode, Encode};
 use color_eyre::eyre::{ensure, Result};
 use html2text::from_read_with_decorator;
 use html2text::render::TrivialDecorator;
+use lazy_regex::regex_find;
 use std::borrow::Cow;
 use tl::{HTMLTag, NodeHandle, Parser, VDom};
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 /// Structure of data/index.html (nix-darwin): Each option header is in a `<dt>`, associated description, type, default, example and link to docs is in a `<dd>`.
 /// This method assumes that there's an equal number of `<dt>` and `<dd>` tags, and that they come paired up one after the other. If the number of `<dt>` and `<dd>` tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
-pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> {
+pub(crate) fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> {
     let p = dom.parser();
+    // TODO: To parse the Nixpkgs reference manual ("https://nixos.org/manual/nixpkgs/stable/"), would it help to pull out dl lists first and then parse dt/dd tags pairwise in each list?
     let dt_tags = dom
         .query_selector("dt")
         .expect("dt is a valid CSS selector")
@@ -21,7 +23,9 @@ pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> 
 
     ensure!(
         dt_tags.len() == dd_tags.len(),
-        "there should be an equal number of dt and dd tags"
+        "Should have {} dt tags = {} dd tags",
+        dt_tags.len(),
+        dd_tags.len()
     );
 
     Ok(std::iter::zip(dt_tags, dd_tags)
@@ -29,19 +33,47 @@ pub fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> 
         .collect())
 }
 
-pub fn parse_version<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
-    let p = dom.parser();
-    let versions = dom
-        .query_selector(".subtitle")?
-        .filter_map(|nh| nh.get(p))
-        .map(|n| n.inner_html(p))
-        .collect::<Vec<_>>();
-    Some(versions.join("|"))
+/// Different data sources expose version information in different ways, so we try multiple methods in hopes of eventually succeeding.
+pub(crate) fn parse_version<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
+    let sub = parse_version_by_subtitle(dom);
+    if sub.is_some() {
+        sub
+    } else {
+        parse_version_by_title(dom)
+    }
 }
 
+/// Try to find a version in the title of the page, using an "official" semver regex.
+/// This applies to the Nix Built-ins source in the defaults.
+fn parse_version_by_title<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
+    let p = dom.parser();
+    let title = dom.query_selector("title")?.next()?.get(p)?.inner_html(p);
+
+    // https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+    let semver = regex_find!(
+        r#"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"#,
+        &title
+    )?;
+    Some(format!("Version {semver}"))
+}
+
+/// Use the first `<subtitle>` contents, if such a field exists.
+/// Used for most of the default sources.
+fn parse_version_by_subtitle<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
+    let p = dom.parser();
+    Some(
+        dom.query_selector(".subtitle")?
+            .next()?
+            .get(p)?
+            .inner_html(p)
+            .to_string(),
+    )
+}
+
+/// A term and each section of its description, as a list of the top level html elements in each section.
 #[derive(Clone, Debug)]
-pub struct OptData<'a> {
-    name: Vec<HTMLTag<'a>>,
+pub(crate) struct OptData<'a> {
+    term: Vec<HTMLTag<'a>>,
     description: Vec<HTMLTag<'a>>,
     var_type: Vec<HTMLTag<'a>>,
     default: Vec<HTMLTag<'a>>,
@@ -59,6 +91,19 @@ impl OptData<'_> {
             .fold(String::new(), |acc, e| acc + "\n" + &e)
             .trim()
             .to_string()
+    }
+
+    fn term_id(&self) -> String {
+        self.term
+            .iter()
+            .filter_map(|t| t.query_selector(self.p, "a"))
+            .flatten()
+            .filter_map(|nh| nh.get(self.p))
+            .filter_map(tl::Node::as_tag)
+            .map(HTMLTag::attributes)
+            .filter_map(move |a| a.id())
+            .map(tl::Bytes::as_utf8_str)
+            .collect()
     }
 
     /// NOTE: Options can be declared in multiple places, hence returning a Vec here.
@@ -95,23 +140,25 @@ impl OptData<'_> {
 }
 
 #[derive(Clone, Debug)]
-pub struct OptRawHTML {
-    pub name: String,
-    pub description: String,
-    pub var_type: String,
-    pub default: String,
-    pub example: String,
-    pub declared_by: String,
-    pub declared_by_urls: Vec<String>,
+pub(crate) struct OptRawHTML {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) description: String,
+    pub(crate) var_type: String,
+    pub(crate) default: String,
+    pub(crate) example: String,
+    pub(crate) declared_by: String,
+    pub(crate) declared_by_urls: Vec<String>,
 }
 
 impl From<OptData<'_>> for OptRawHTML {
     fn from(value: OptData<'_>) -> Self {
         let declared_by_urls = value.declared_by_urls();
 
-        debug!(name: "Convert OptData to OptRawHTML", declared_by = format!("{:?}", value.declared_by), declared_by = format!("{declared_by_urls:?}"));
+        trace!(name: "Convert OptData to OptRawHTML", declared_by = format!("{:?}", value.declared_by), declared_by = format!("{declared_by_urls:?}"));
         Self {
-            name: value.field_to_raw_html(&value.name),
+            id: value.term_id(),
+            name: value.field_to_raw_html(&value.term),
             description: value.field_to_raw_html(&value.description),
             var_type: value.field_to_raw_html(&value.var_type),
             default: value.field_to_raw_html(&value.default),
@@ -123,14 +170,15 @@ impl From<OptData<'_>> for OptRawHTML {
 }
 
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct OptText {
-    pub name: String,
-    pub description: String,
-    pub var_type: String,
-    pub default: String,
-    pub example: String,
-    pub declared_by: String,
-    pub declared_by_urls: Vec<String>,
+pub(crate) struct OptText {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) description: String,
+    pub(crate) var_type: String,
+    pub(crate) default: String,
+    pub(crate) example: String,
+    pub(crate) declared_by: String,
+    pub(crate) declared_by_urls: Vec<String>,
 }
 
 impl From<OptRawHTML> for OptText {
@@ -142,6 +190,7 @@ impl From<OptRawHTML> for OptText {
         let example = read_html_strip_prefix(&html.example, Some("Example:"));
         let declared_by = read_html_strip_prefix(&html.declared_by, Some("Declared By:"));
         Self {
+            id: html.id,
             name,
             description,
             var_type,
@@ -209,37 +258,36 @@ impl std::fmt::Display for OptRawHTML {
 }
 
 #[derive(Debug)]
-pub struct OptParser<'a> {
+pub(crate) struct OptParser<'a> {
     dt: NodeHandle,
     dd: NodeHandle,
     p: &'a Parser<'a>,
 }
 
 impl<'dom> OptParser<'dom> {
-    pub fn new(dt: NodeHandle, dd: NodeHandle, p: &'dom Parser) -> OptParser<'dom> {
+    pub(crate) fn new(dt: NodeHandle, dd: NodeHandle, p: &'dom Parser) -> OptParser<'dom> {
         OptParser { dt, dd, p }
     }
 
-    pub fn parse(self) -> Option<OptData<'dom>> {
+    pub(crate) fn parse(self) -> Option<OptData<'dom>> {
         let Some(mut tag_slices) = self.split_tags() else {
             warn!("Failed to split dd tags on a node");
             return None;
         };
-        let name = self.get_name().unwrap_or_else(|| {
+        let term = self.get_term().unwrap_or_else(|| {
             warn!("Failed to parse option name");
             vec![]
         });
-        let var_type = self.get_field_by_separator(&mut tag_slices, OptParser::SEPARATOR_TAGS[0]);
-        let default = self.get_field_by_separator(&mut tag_slices, OptParser::SEPARATOR_TAGS[1]);
-        let example = self.get_field_by_separator(&mut tag_slices, OptParser::SEPARATOR_TAGS[2]);
-        let declared_by =
-            self.get_field_by_separator(&mut tag_slices, OptParser::SEPARATOR_TAGS[3]);
+        let var_type = self.get_field_by_separator(&mut tag_slices, Self::TYPE_TAG);
+        let default = self.get_field_by_separator(&mut tag_slices, Self::DEFAULT_TAG);
+        let example = self.get_field_by_separator(&mut tag_slices, Self::EXAMPLE_TAG);
+        let declared_by = self.get_field_by_separator(&mut tag_slices, Self::DECLAREDBY_TAG);
         let description = tag_slices
             .into_iter()
             .fold(vec![], |acc, e| [acc, e].concat());
 
         Some(OptData {
-            name,
+            term,
             description,
             var_type,
             default,
@@ -249,15 +297,18 @@ impl<'dom> OptParser<'dom> {
         })
     }
 
+    const TYPE_TAG: &'static str = r#"<span class="emphasis"><em>Type:</em></span>"#;
+    const DEFAULT_TAG: &'static str = r#"<span class="emphasis"><em>Default:</em></span>"#;
+    const EXAMPLE_TAG: &'static str = r#"<span class="emphasis"><em>Example:</em></span>"#;
+    const DECLAREDBY_TAG: &'static str = r#"<span class="emphasis"><em>Declared by:</em></span>"#;
     const SEPARATOR_TAGS: [&'static str; 4] = [
-        r#"<span class="emphasis"><em>Type:</em></span>"#,
-        r#"<span class="emphasis"><em>Default:</em></span>"#,
-        r#"<span class="emphasis"><em>Example:</em></span>"#,
-        r#"<span class="emphasis"><em>Declared by:</em></span>"#,
+        Self::TYPE_TAG,
+        Self::DEFAULT_TAG,
+        Self::EXAMPLE_TAG,
+        Self::DECLAREDBY_TAG,
     ];
 
-    // Might want to unify this with self.get_field().
-    fn get_name(&'_ self) -> Option<Vec<HTMLTag<'dom>>> {
+    fn get_term(&'_ self) -> Option<Vec<HTMLTag<'dom>>> {
         Some(
             self.dt
                 .get(self.p)?

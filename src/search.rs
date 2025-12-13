@@ -1,25 +1,28 @@
+use crate::config::SourceConfig;
+use crate::parsing::{parse_options, parse_version, OptText};
 use bitcode::{Decode, Encode};
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{eyre, Context, Result};
+use lazy_regex::regex_replace_all;
 use nucleo::pattern::{CaseMatching, Normalization};
 use nucleo::{Config, Nucleo};
+use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
-
-use crate::logging::cache_dir;
-use crate::opt_data::{parse_options, parse_version, OptText};
+use tl::VDom;
+use tracing::{debug, error, instrument};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum InputStatus {
+pub(crate) enum InputStatus {
     Unchanged,
     Append,
     Change,
 }
 
-pub struct Finder {
+pub(crate) struct Finder {
     source: Source,
     version: Arc<OnceLock<String>>,
     searcher: Nucleo<OptText>,
@@ -28,16 +31,29 @@ pub struct Finder {
 }
 
 impl Finder {
-    pub fn new(source: Source) -> Self {
-        Self::new_with_data_fn(source, None)
+    pub(crate) fn new(
+        source: Source,
+        cache_dir: Option<&'static Path>,
+        cache_duration: Option<Duration>,
+    ) -> Self {
+        Self::new_with_data_fn(source, None, cache_dir, cache_duration)
     }
 
     // Allows for overriding the data source, namely for tests that specifically want to acquire data online or from cache.
     fn new_with_data_fn(
         source: Source,
         data_fn: Option<Box<dyn Fn() -> Result<SourceData> + Send>>,
+        cache_dir: Option<&'static Path>,
+        cache_duration: Option<Duration>,
     ) -> Self {
-        let data_fn = data_fn.unwrap_or(Box::new(move || source.get_data()));
+        let source_clone = source.clone();
+        let data_fn = data_fn.unwrap_or(Box::new(move || {
+            let res = source_clone.get_data(cache_dir, cache_duration);
+            if res.is_err() {
+                debug!(?res);
+            }
+            res
+        }));
 
         let results_waiting = Arc::new(AtomicBool::new(false));
         let results_sender = Arc::clone(&results_waiting);
@@ -55,21 +71,21 @@ impl Finder {
         }
     }
 
-    pub fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         self.source.to_string()
     }
 
-    pub fn url(&self) -> &'static str {
+    pub(crate) fn url(&self) -> &str {
         self.source.url()
     }
 
-    pub fn version(&self) -> &str {
+    pub(crate) fn version(&self) -> &str {
         self.version
             .get()
             .map_or("Version number not found (yet)", |s| s)
     }
 
-    pub fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
+    pub(crate) fn init_search(&mut self, pattern: &str, input_status: InputStatus) {
         if input_status != InputStatus::Unchanged {
             self.searcher.pattern.reparse(
                 0,
@@ -83,7 +99,7 @@ impl Finder {
         self.searcher.tick(10);
     }
 
-    pub fn get_results(&self, max: Option<usize>) -> Vec<OptText> {
+    pub(crate) fn get_results(&self, max: Option<usize>) -> Vec<OptText> {
         let snap = self.searcher.snapshot();
         let n = snap.matched_item_count();
 
@@ -94,12 +110,8 @@ impl Finder {
         }
     }
 
-    pub fn source(&self) -> Source {
-        self.source
-    }
-
     // For testing purposes
-    pub fn find_blocking(
+    pub(crate) fn find_blocking(
         &mut self,
         pattern: &str,
         max: Option<usize>,
@@ -112,8 +124,8 @@ impl Finder {
         Ok(self.get_results(max))
     }
 
-    pub fn url_to(&self, opt: &OptText) -> String {
-        self.source.url_to(opt)
+    pub(crate) fn doc_url_to(&self, opt: &OptText) -> String {
+        self.source.doc_url_to(opt)
     }
 }
 
@@ -152,61 +164,48 @@ fn new_searcher(
     (nuc, handle)
 }
 
-#[derive(Debug, Copy, Clone, Encode, Decode, PartialEq, strum::VariantArray)]
-pub enum Source {
-    NixDarwin,
-    NixOS,
-    NixOSUnstable,
-    HomeManager,
-    HomeManagerNixOS,
-    HomeManagerNixDarwin,
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Deserialize, Serialize)]
+// #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub(crate) struct Source {
+    inner: SourceConfig,
+    // cache_duration: Option<Duration>,
+    // cache_dir: Option<PathBuf>,
 }
 
 impl Source {
-    const CACHE_MAX_AGE: Duration = Duration::from_secs(7 * 24 * 60 * 60);
     // From docs: Compression level 0 means "use zstd default compression level", currently 3
     const ZSTD_COMPRESSION_LEVEL: i32 = 0;
-
-    fn url(self) -> &'static str {
-        match self {
-            Self::NixDarwin => "https://nix-darwin.github.io/nix-darwin/manual/index.html",
-            Self::NixOS => "https://nixos.org/manual/nixos/stable/options",
-            Self::NixOSUnstable => "https://nixos.org/manual/nixos/unstable/options",
-            Self::HomeManager => "https://nix-community.github.io/home-manager/options.xhtml",
-            Self::HomeManagerNixOS => {
-                "https://nix-community.github.io/home-manager/nixos-options.xhtml"
-            }
-            Self::HomeManagerNixDarwin => {
-                "https://nix-community.github.io/home-manager/nix-darwin-options.xhtml"
-            }
+    pub(crate) fn from(
+        source: &SourceConfig,
+        // cache_duration: Option<&Duration>,
+        // cache_dir: Option<&PathBuf>,
+    ) -> Self {
+        Self {
+            inner: source.clone(),
+            // cache_duration: cache_duration.copied(),
+            // cache_dir: cache_dir.cloned(),
         }
     }
 
-    fn version_url(self) -> &'static str {
-        match self {
-            Self::NixDarwin => self.url(),
-            Self::NixOS => "https://nixos.org/manual/nixos/stable/",
-            Self::NixOSUnstable => "https://nixos.org/manual/nixos/unstable/",
-            Self::HomeManager | Self::HomeManagerNixOS | Self::HomeManagerNixDarwin => {
-                "https://nix-community.github.io/home-manager/"
-            }
-        }
+    fn url(&self) -> &str {
+        &self.inner.url
     }
 
-    fn url_to(self, opt: &OptText) -> String {
-        let tag = match self {
-            Self::NixDarwin | Self::NixOS | Self::NixOSUnstable | Self::HomeManager => "opt",
-            Self::HomeManagerNixOS => "nixos-opt",
-            Self::HomeManagerNixDarwin => "nix-darwin-opt",
-        };
-        format!("{}#{}-{}", self.url(), tag, opt.name.trim())
+    fn version_url(&self) -> &str {
+        self.inner.version_url.as_ref().unwrap_or(&self.inner.url)
     }
 
-    fn cache_path(self) -> PathBuf {
-        cache_dir().clone().join(format!("{self}.zst"))
+    fn doc_url_to(&self, opt: &OptText) -> String {
+        format!("{}#{}", self.url(), opt.id)
     }
 
-    fn store_cache_to(data: &SourceData, path: &PathBuf) -> Result<()> {
+    /// Returns the path to the cache file for this source if a cache directory has been configured, otherwise None
+    fn cache_path(&self, cache_dir: &Path) -> PathBuf {
+        cache_dir.join(format!("{self}.zst"))
+    }
+
+    #[instrument(err, level = "warn")]
+    fn store_cache_to(data: &SourceData, path: &Path) -> Result<()> {
         let bitdata = bitcode::encode(data);
         let zstddata =
             zstd::stream::encode_all(bitdata.as_slice(), Source::ZSTD_COMPRESSION_LEVEL)?;
@@ -214,44 +213,52 @@ impl Source {
         Ok(())
     }
 
-    fn store_cache(self, data: &SourceData) -> Result<()> {
-        Source::store_cache_to(data, &self.cache_path())
+    fn store_cache(&self, data: &SourceData, cache_dir: &Path) -> Result<()> {
+        Source::store_cache_to(data, &self.cache_path(cache_dir))
     }
 
-    fn load_cache_from(path: &PathBuf) -> Result<SourceData> {
+    #[instrument(err, level = "warn")]
+    fn load_cache_from(path: &Path) -> Result<SourceData> {
         let zstddata = std::fs::read(path)?;
         let bitdata = zstd::stream::decode_all(zstddata.as_slice())?;
         let data = bitcode::decode(&bitdata)?;
         Ok(data)
     }
 
-    fn load_cache(self) -> Result<SourceData> {
-        Source::load_cache_from(&self.cache_path())
+    fn load_cache(&self, cache_dir: &Path) -> Result<SourceData> {
+        Source::load_cache_from(&self.cache_path(cache_dir))
     }
 
     /// Returns Ok(bool) if and only if there is a readable cache file. The value of the bool depends on the last modified time of the file, as reported by the file system.
-    fn cache_is_current(self) -> Result<bool> {
-        let f = std::fs::File::open(self.cache_path())?;
-        let last_modified = f.metadata()?.modified()?;
-        let age = last_modified.elapsed()?;
-        Ok(age < Source::CACHE_MAX_AGE)
+    fn cache_is_current(&self, cache_dir: &Path, cache_duration: Option<Duration>) -> Result<bool> {
+        let f = std::fs::File::open(self.cache_path(cache_dir))?;
+        if let Some(ref max_age) = cache_duration {
+            let last_modified = f.metadata()?.modified()?;
+            let age = last_modified.elapsed()?;
+            Ok(age < *max_age)
+        } else {
+            Ok(true)
+        }
     }
 
-    fn get_version(self) -> Result<String> {
-        let html = ureq::get(self.version_url())
-            .call()?
-            .body_mut()
-            .read_to_string()?;
+    #[instrument(err, level = "debug")]
+    fn get_version(&self, dom: Option<&VDom>) -> Result<String> {
+        if let (Some(dom), true) = (dom, self.url() == self.version_url()) {
+            parse_version(dom)
+        } else {
+            let html = ureq::get(self.version_url())
+                .call()?
+                .body_mut()
+                .read_to_string()?;
 
-        let dom = tl::parse(&html, tl::ParserOptions::default())?;
-
-        parse_version(&dom).ok_or(eyre!(
-            "Parsing version from html failed. Length of html document: {}",
-            html.len()
-        ))
+            let dom = tl::parse(&html, tl::ParserOptions::default())?;
+            parse_version(&dom)
+        }
+        .ok_or(eyre!("Parsing version from html failed"))
     }
 
-    fn get_online_data(self) -> Result<SourceData> {
+    #[instrument(err, level = "debug")]
+    fn get_online_data(&self) -> Result<SourceData> {
         let html = ureq::get(self.url())
             .call()?
             .body_mut()
@@ -261,56 +268,83 @@ impl Source {
             .limit(30 * 1024 * 1024)
             .read_to_string()?;
         let dom = tl::parse(&html, tl::ParserOptions::default())?;
+        let opts =
+            parse_options(&dom).map(|ok| ok.into_iter().map(std::convert::Into::into).collect())?;
 
-        Ok(SourceData {
-            source: self,
-            opts: parse_options(&dom)
-                .map(|ok| ok.into_iter().map(std::convert::Into::into).collect())?,
-            version: self.get_version()?,
-        })
+        let version = self.get_version(Some(&dom)).unwrap_or_else(|err| {
+            // Log error on failed version parsing, but keep running
+            error!(
+                "Parsing version number failed for {}: {err}",
+                self.inner.name
+            );
+            "No version number found".to_string()
+        });
+
+        let mut data = SourceData {
+            source: self.clone(),
+            opts,
+            version,
+        };
+        data.nixos_unstable_declared_by_hack();
+        Ok(data)
     }
 
-    // We could return a Result or Option to account for possible failure modes, but currently I'm not sure what I'd use it for.
-    // Maybe if we return a semantically meaningful error, we can retry HTTP requests occassionally on failure? Exponential backoff
-    fn get_data(self) -> Result<SourceData> {
-        let cache_validity = self.cache_is_current();
-        if let Ok(true) = cache_validity {
-            if let Ok(data) = self.load_cache() {
-                // Happy path: Just use existing cache
-                return Ok(data);
-            }
-        }
-        // Cache is outdated or there was a reading error
-        if let Ok(data) = self.get_online_data() {
-            // We can get the opts from the web and update the cache
-            // Ignore the result
-            drop(self.store_cache(&data));
+    #[instrument(err, level = "debug")]
+    fn get_data(
+        &self,
+        cache_dir: Option<&Path>,
+        cache_duration: Option<Duration>,
+    ) -> Result<SourceData> {
+        // 0. No local cache is specified
+        let Some(cache_dir) = cache_dir else {
+            return self.get_online_data();
+        };
+
+        // 1. Try to load a fresh, matching cache
+        if let Ok(data) = self.try_load_valid_cache(cache_dir, cache_duration) {
             return Ok(data);
         }
-        // Cache is outdated or broken and we're effectively offline
-        if let Ok(false) = cache_validity {
-            // If the cache was just outdated, returning the outdated cache is better than nothing
-            // If loading the cache fails, other Sources might still work, so avoid crashing the program by unwrapping.
-            if let Ok(data) = self.load_cache() {
+
+        // 2. Cache is outdated, doesn't match the current SourceConfig, or there was an IO error, get fresh data online
+        if let Ok(data) = self.get_online_data() {
+            // Update the cache, ignoring any errors
+            drop(self.store_cache(&data, cache_dir));
+            return Ok(data);
+        }
+
+        // 3. Cache is outdated or broken and we're effectively offline
+        self.try_load_outdated_cache_by_url_only(cache_dir)
+            .wrap_err(format!("Failed to get data for {self}"))
+    }
+
+    fn try_load_valid_cache(
+        &self,
+        cache_dir: &Path,
+        cache_duration: Option<Duration>,
+    ) -> Result<SourceData> {
+        if self.cache_is_current(cache_dir, cache_duration)? {
+            let data = self.load_cache(cache_dir)?;
+            if data.source == *self {
+                // The cached data is for the correct Source and is fresh
                 return Ok(data);
             }
         }
-        // TODO: Embed precomputed cache at compile time to use as a last ditch fallback?
-        Err(eyre!("Failed to get data for {self}"))
+        Err(eyre!("Cache is outdated or for the wrong Source"))
+    }
+
+    fn try_load_outdated_cache_by_url_only(&self, cache_dir: &Path) -> Result<SourceData> {
+        let data = self.load_cache(cache_dir)?;
+        if data.source.inner.url == *self.inner.url {
+            // The cached data at least comes from the right place, but may be outdated, and version_urls might not match
+            return Ok(data);
+        }
+        Err(eyre!("Cache doesn't exist or is for the wrong Source url"))
     }
 }
 
 impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match self {
-            Self::NixDarwin => "Nix-Darwin",
-            Self::NixOS => "NixOS",
-            Self::NixOSUnstable => "NixOS Unstable",
-            Self::HomeManager => "Home Manager",
-            Self::HomeManagerNixOS => "Home Manager NixOS",
-            Self::HomeManagerNixDarwin => "Home Manager Nix-Darwin",
-        };
-        write!(f, "{s}")
+        write!(f, "{}", self.inner.name)
     }
 }
 
@@ -321,10 +355,30 @@ struct SourceData {
     version: String,
 }
 
+impl SourceData {
+    fn nixos_unstable_declared_by_hack(&mut self) {
+        if self.source.inner.name == "NixOS Unstable" {
+            for opt in &mut self.opts {
+                opt.declared_by_urls = opt
+                    .declared_by_urls
+                    .iter()
+                    .map(|url| {
+                        regex_replace_all!(r#"release-\d{2}\.\d{2}"#, url, "nixos-unstable")
+                            .to_string()
+                    })
+                    .collect();
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
+    #[cfg(feature = "online-tests")]
     use super::*;
+    #[cfg(feature = "online-tests")]
+    use crate::config::consts;
 
     #[cfg(feature = "online-tests")]
     use tempfile::tempdir;
@@ -332,7 +386,7 @@ mod tests {
     #[test]
     #[cfg(feature = "online-tests")]
     fn test_cache_roundtrip() {
-        let s = Source::NixDarwin;
+        let s = Source::from(&consts::NIX_DARWIN);
         let Ok(opts) = s.get_online_data() else {
             panic!(
                 "Can get and parse options for {s} from the web (tests require network connection)"
@@ -356,14 +410,14 @@ mod tests {
     #[cfg(feature = "online-tests")]
     fn test_finders() {
         let mut handles = vec![];
-        for s in [
-            Source::NixDarwin,
-            Source::NixOS, // While slow, running this is necessary to sufficiently test the find_blocking method
-            Source::HomeManager,
-            Source::HomeManagerNixOS,
-            Source::HomeManagerNixDarwin,
-        ] {
-            handles.push((s, std::thread::spawn(move || test_finder(s))));
+        for s in consts::BUILTIN_SOURCES.iter() {
+            let s = Source {
+                inner: (*s).clone(),
+            };
+            handles.push((
+                s.clone(),
+                std::thread::spawn(move || test_finder(&s, None, None)),
+            ));
         }
         for h in handles {
             assert!(
@@ -375,8 +429,12 @@ mod tests {
     }
 
     #[cfg(feature = "online-tests")]
-    fn test_finder(source: Source) {
-        let mut f = Finder::new_with_data_fn(source, Some(Box::new(move || source.get_data())));
+    fn test_finder(
+        source: &Source,
+        cache_dir: Option<&'static Path>,
+        cache_duration: Option<Duration>,
+    ) {
+        let mut f = Finder::new(source.clone(), cache_dir, cache_duration);
         assert_ne!(
             f.find_blocking("s", Some(5))
                 .expect("find_blocking should not fail")
@@ -390,13 +448,13 @@ mod tests {
     #[cfg(feature = "online-tests")]
     fn test_doc_urls_trimmed() {
         // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
-        let s = Source::NixDarwin;
+        let s = Source::from(&consts::NIX_DARWIN);
         let urls = s
-            .get_data()
+            .get_data(None, None)
             .expect("Can get data")
             .opts
             .into_iter()
-            .map(|opt| s.url_to(&opt));
+            .map(|opt| s.doc_url_to(&opt));
         for url in urls {
             assert_eq!(url, url.trim());
             assert_ne!(url.chars().last(), Some('\n'));
@@ -404,8 +462,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "online-tests")]
     fn test_empty_search() {
-        let mut f = Finder::new(Source::NixDarwin);
+        let mut f = Finder::new(Source::from(&consts::NIX_DARWIN), None, None);
         assert_eq!(
             f.find_blocking("asdfasdfasdf", Some(5))
                 .expect("find blocking should not fail")
@@ -418,10 +477,11 @@ mod tests {
     #[test]
     #[cfg(feature = "online-tests")]
     fn test_get_version() {
-        use strum::VariantArray;
+        use crate::config::consts;
 
-        for s in Source::VARIANTS {
-            let version = s.get_version().expect("Can get version");
+        for s in consts::BUILTIN_SOURCES.iter() {
+            let s = Source::from(s);
+            let version = s.get_version(None).expect("Can get version");
             assert!(version.contains("Version"), "Version string: {version}");
         }
     }
