@@ -4,12 +4,26 @@ use html2text::from_read_with_decorator;
 use html2text::render::TrivialDecorator;
 use lazy_regex::regex_find;
 use std::borrow::Cow;
-use tl::{HTMLTag, NodeHandle, Parser, VDom};
+use tl::{HTMLTag, NodeHandle, Parser, ParserOptions, VDom};
 use tracing::{trace, warn};
+
+/// A fully parsed option entity with fields formatted as raw text ready to print
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+pub(crate) struct OptText {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) description: String,
+    pub(crate) var_type: String,
+    pub(crate) default: String,
+    pub(crate) example: String,
+    pub(crate) declared_by: String,
+    pub(crate) declared_by_urls: Vec<String>,
+}
 
 /// Structure of data/index.html (nix-darwin): Each option header is in a `<dt>`, associated description, type, default, example and link to docs is in a `<dd>`.
 /// This method assumes that there's an equal number of `<dt>` and `<dd>` tags, and that they come paired up one after the other. If the number of `<dt>` and `<dd>` tags don't match, this panics. If they are out of order, we have no way of catching it, so the output will just be meaningless.
-pub(crate) fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'dom>>> {
+pub(crate) fn parse_options(html: &str) -> Result<Vec<OptText>> {
+    let dom = tl::parse(html, ParserOptions::default())?;
     let p = dom.parser();
     // TODO: To parse the Nixpkgs reference manual ("https://nixos.org/manual/nixpkgs/stable/"), would it help to pull out dl lists first and then parse dt/dd tags pairwise in each list?
     let dt_tags = dom
@@ -30,16 +44,18 @@ pub(crate) fn parse_options<'dom>(dom: &'dom VDom<'dom>) -> Result<Vec<OptData<'
 
     Ok(std::iter::zip(dt_tags, dd_tags)
         .filter_map(|(dt, dd)| OptParser::new(dt, dd, p).parse())
+        .map(std::convert::Into::into)
         .collect())
 }
 
 /// Different data sources expose version information in different ways, so we try multiple methods in hopes of eventually succeeding.
-pub(crate) fn parse_version<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
-    let sub = parse_version_by_subtitle(dom);
+pub(crate) fn parse_version(html: &str) -> Result<Option<String>> {
+    let dom = tl::parse(html, ParserOptions::default())?;
+    let sub = parse_version_by_subtitle(&dom);
     if sub.is_some() {
-        sub
+        Ok(sub)
     } else {
-        parse_version_by_title(dom)
+        Ok(parse_version_by_title(&dom))
     }
 }
 
@@ -72,7 +88,7 @@ fn parse_version_by_subtitle<'dom>(dom: &'dom VDom<'dom>) -> Option<String> {
 
 /// A term and each section of its description, as a list of the top level html elements in each section.
 #[derive(Clone, Debug)]
-pub(crate) struct OptData<'a> {
+struct OptData<'a> {
     term: Vec<HTMLTag<'a>>,
     description: Vec<HTMLTag<'a>>,
     var_type: Vec<HTMLTag<'a>>,
@@ -140,15 +156,15 @@ impl OptData<'_> {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct OptRawHTML {
-    pub(crate) id: String,
-    pub(crate) name: String,
-    pub(crate) description: String,
-    pub(crate) var_type: String,
-    pub(crate) default: String,
-    pub(crate) example: String,
-    pub(crate) declared_by: String,
-    pub(crate) declared_by_urls: Vec<String>,
+struct OptRawHTML {
+    id: String,
+    name: String,
+    description: String,
+    var_type: String,
+    default: String,
+    example: String,
+    declared_by: String,
+    declared_by_urls: Vec<String>,
 }
 
 impl From<OptData<'_>> for OptRawHTML {
@@ -167,18 +183,6 @@ impl From<OptData<'_>> for OptRawHTML {
             declared_by_urls,
         }
     }
-}
-
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub(crate) struct OptText {
-    pub(crate) id: String,
-    pub(crate) name: String,
-    pub(crate) description: String,
-    pub(crate) var_type: String,
-    pub(crate) default: String,
-    pub(crate) example: String,
-    pub(crate) declared_by: String,
-    pub(crate) declared_by_urls: Vec<String>,
 }
 
 impl From<OptRawHTML> for OptText {
@@ -258,18 +262,18 @@ impl std::fmt::Display for OptRawHTML {
 }
 
 #[derive(Debug)]
-pub(crate) struct OptParser<'a> {
+struct OptParser<'a> {
     dt: NodeHandle,
     dd: NodeHandle,
     p: &'a Parser<'a>,
 }
 
 impl<'dom> OptParser<'dom> {
-    pub(crate) fn new(dt: NodeHandle, dd: NodeHandle, p: &'dom Parser) -> OptParser<'dom> {
+    fn new(dt: NodeHandle, dd: NodeHandle, p: &'dom Parser) -> OptParser<'dom> {
         OptParser { dt, dd, p }
     }
 
-    pub(crate) fn parse(self) -> Option<OptData<'dom>> {
+    fn parse(self) -> Option<OptData<'dom>> {
         let Some(mut tag_slices) = self.split_tags() else {
             warn!("Failed to split dd tags on a node");
             return None;

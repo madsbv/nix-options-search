@@ -1,7 +1,8 @@
 use crate::config::AppConfig;
+use crate::finder::{Finder, InputStatus};
 use crate::opt_display::OptListItem;
 use crate::parsing::OptText;
-use crate::search::{Finder, InputStatus, Source};
+use crate::source::Source;
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
@@ -62,7 +63,7 @@ impl App {
     }
 
     // For testing
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn search_blocking(
         &mut self,
         max: Option<usize>,

@@ -8,10 +8,11 @@ mod cli;
 use cli::Cli;
 mod cache;
 mod config;
+mod finder;
 mod logging;
 mod opt_display;
 mod parsing;
-mod search;
+mod source;
 mod tui;
 
 use config::AppConfig;
@@ -41,7 +42,7 @@ fn init_and_run() -> Result<()> {
     let config = CONFIG.get().expect("Can get value of just-set OnceCell");
 
     logging::initialize(config)?;
-    cache::initialize(config)?;
+    cache::initialize_cache_dir(config)?;
 
     cli.run(config)?;
 
