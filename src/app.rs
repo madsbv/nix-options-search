@@ -333,6 +333,7 @@ mod tests {
 
     // Tests against internet-acquired HTML if possible
     #[test]
+    #[ignore = "flaky and expensive"]
     #[cfg(feature = "online-tests")]
     fn search_each_tab() {
         static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
