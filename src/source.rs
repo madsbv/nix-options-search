@@ -136,64 +136,36 @@ impl SourceData {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     #[cfg(feature = "online-tests")]
-//     use super::*;
-//     #[cfg(feature = "online-tests")]
-//     use crate::config::consts;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::BUILTIN_SOURCES_WITH_HTML;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
 
-//     #[test]
-//     #[cfg(feature = "online-tests")]
-//     fn test_cache_roundtrip() {
-//         use std::path::PathBuf;
-//         use tempfile::tempdir;
+    #[test]
+    fn test_cache_roundtrip() -> Result<()> {
+        let tmpdir = tempdir().expect("Can create temporary directory");
+        for swh in BUILTIN_SOURCES_WITH_HTML.iter() {
+            let path = tmpdir
+                .path()
+                .join(PathBuf::from(format!("{}.zst", swh.source)));
+            Source::store_cache(&swh.data, &path)?;
+            let roundtripped = Source::load_cache(&path)?;
+            assert_eq!(swh.data, roundtripped);
+        }
+        Ok(())
+    }
 
-//         let s = Source::from(&consts::NIX_DARWIN);
-//         let Ok(opts) = s.get_online_data() else {
-//             panic!(
-//                 "Can get and parse options for {s} from the web (tests require network connection)"
-//             )
-//         };
-
-//         let tmpdir = tempdir().expect("Can create temporary directory");
-//         let path = tmpdir.path().join(PathBuf::from(format!("{s}.zst")));
-
-//         Source::store_cache_to(&opts, &path)
-//             .expect("Can encode, compress and store cache to local testing directory");
-//         let roundtrip_opts = Source::load_cache_from(&path).expect(
-//             "Can read, decompress and decode stored cache data from local testing directory",
-//         );
-
-//         assert_eq!(opts, roundtrip_opts);
-//     }
-
-//     #[test]
-//     #[cfg(feature = "online-tests")]
-//     fn test_doc_urls_trimmed() {
-//         // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
-//         let s = Source::from(&consts::NIX_DARWIN);
-//         let urls = s
-//             .get_data(None, None)
-//             .expect("Can get data")
-//             .opts
-//             .into_iter()
-//             .map(|opt| s.doc_url_to(&opt));
-//         for url in urls {
-//             assert_eq!(url, url.trim());
-//             assert_ne!(url.chars().last(), Some('\n'));
-//         }
-//     }
-
-//     #[test]
-//     #[cfg(feature = "online-tests")]
-//     fn test_get_version() {
-//         use crate::config::consts;
-
-//         for s in consts::BUILTIN_SOURCES.iter() {
-//             let s = Source::from(s);
-//             let version = s.get_version(None).expect("Can get version");
-//             assert!(version.contains("Version"), "Version string: {version}");
-//         }
-//     }
-// }
+    #[test]
+    fn test_doc_urls_trimmed() {
+        // Previously, Source::url_to returned urls with a trailing newline. Still not sure where the newline originates.
+        for swh in BUILTIN_SOURCES_WITH_HTML.iter() {
+            for opt in &swh.data.opts {
+                let url = swh.source.doc_url_to(opt);
+                assert_eq!(url, url.trim());
+                assert_ne!(url.chars().last(), Some('\n'));
+            }
+        }
+    }
+}

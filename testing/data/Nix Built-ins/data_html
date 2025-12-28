@@ -1,0 +1,2376 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Built-ins - Nix 2.28.6 Reference Manual</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nix 2.28.6 Reference Manual</h1>
+
+                    <div class="right-buttons">
+                        <a aria-label='Print this book' href='/manual/nix/2.28/print' title='Print this book'>
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/NixOS/nix" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/NixOS/nix/tree/master/doc/manual/source/language/builtins.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="built-ins"><a class="header" href="#built-ins">Built-ins</a></h1>
+<p>This section lists the values and functions built into the Nix language evaluator.
+All built-ins are available through the global <a href="#builtins-builtins"><code>builtins</code></a> constant.</p>
+<p>Some built-ins are also exposed directly in the global scope:</p>
+<!-- TODO(@rhendric, #10970): this list is incomplete -->
+<ul>
+<li><a href="#builtins-derivation"><code>derivation</code></a></li>
+<li><a href="#builtins-import"><code>import</code></a></li>
+<li><a href="#builtins-abort"><code>abort</code></a></li>
+<li><a href="#builtins-throw"><code>throw</code></a></li>
+</ul>
+<dl>
+  <dt id="builtins-derivation"><a href="#builtins-derivation"><code>derivation <var>attrs</var></code></a></dt>
+  <dd><p><var>derivation</var> is described in
+         <a href='/manual/nix/2.28/language/derivations'>its own section</a>.</p></dd>
+<dt id="builtins-abort">
+  <a href="#builtins-abort"><code>abort <var>s</var></code></a>
+</dt>
+<dd>
+<p>Abort Nix expression evaluation and print the error message <em>s</em>.</p>
+</dd>
+<dt id="builtins-add">
+  <a href="#builtins-add"><code>add <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return the sum of the numbers <em>e1</em> and <em>e2</em>.</p>
+</dd>
+<dt id="builtins-addDrvOutputDependencies">
+  <a href="#builtins-addDrvOutputDependencies"><code>addDrvOutputDependencies <var>s</var></code></a>
+</dt>
+<dd>
+<p>Create a copy of the given string where a single
+<a href='/manual/nix/2.28/language/string-context#string-context-element-constant'>constant</a>
+string context element is turned into a
+<a href='/manual/nix/2.28/language/string-context#string-context-element-derivation-deep'>derivation deep</a>
+string context element.</p>
+<p>The store path that is the constant string context element should point to a valid derivation, and end in <code>.drv</code>.</p>
+<p>The original string context element must not be empty or have multiple elements, and it must not have any other type of element other than a constant or derivation deep element.
+The latter is supported so this function is idempotent.</p>
+<p>This is the opposite of <a href="#builtins-unsafeDiscardOutputDependency"><code>builtins.unsafeDiscardOutputDependency</code></a>.</p>
+</dd>
+<dt id="builtins-all">
+  <a href="#builtins-all"><code>all <var>pred</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if the function <em>pred</em> returns <code>true</code> for all elements
+of <em>list</em>, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-any">
+  <a href="#builtins-any"><code>any <var>pred</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if the function <em>pred</em> returns <code>true</code> for at least one
+element of <em>list</em>, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-attrNames">
+  <a href="#builtins-attrNames"><code>attrNames <var>set</var></code></a>
+</dt>
+<dd>
+<p>Return the names of the attributes in the set <em>set</em> in an
+alphabetically sorted list. For instance, <code>builtins.attrNames { y = 1; x = "foo"; }</code> evaluates to <code>[ "x" "y" ]</code>.</p>
+</dd>
+<dt id="builtins-attrValues">
+  <a href="#builtins-attrValues"><code>attrValues <var>set</var></code></a>
+</dt>
+<dd>
+<p>Return the values of the attributes in the set <em>set</em> in the order
+corresponding to the sorted attribute names.</p>
+</dd>
+<dt id="builtins-baseNameOf">
+  <a href="#builtins-baseNameOf"><code>baseNameOf <var>x</var></code></a>
+</dt>
+<dd>
+<p>Return the <em>base name</em> of either a <a href='/manual/nix/2.28/language/types#type-path'>path value</a> <em>x</em> or a string <em>x</em>, depending on which type is passed, and according to the following rules.</p>
+<p>For a path value, the <em>base name</em> is considered to be the part of the path after the last directory separator, including any file extensions.
+This is the simple case, as path values don't have trailing slashes.</p>
+<p>When the argument is a string, a more involved logic applies. If the string ends with a <code>/</code>, only this one final slash is removed.</p>
+<p>After this, the <em>base name</em> is returned as previously described, assuming <code>/</code> as the directory separator. (Note that evaluation must be platform independent.)</p>
+<p>This is somewhat similar to the <a href="https://www.gnu.org/software/coreutils/manual/html_node/basename-invocation.html">GNU <code>basename</code></a> command, but GNU <code>basename</code> will strip any number of trailing slashes.</p>
+</dd>
+<dt id="builtins-bitAnd">
+  <a href="#builtins-bitAnd"><code>bitAnd <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return the bitwise AND of the integers <em>e1</em> and <em>e2</em>.</p>
+</dd>
+<dt id="builtins-bitOr">
+  <a href="#builtins-bitOr"><code>bitOr <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return the bitwise OR of the integers <em>e1</em> and <em>e2</em>.</p>
+</dd>
+<dt id="builtins-bitXor">
+  <a href="#builtins-bitXor"><code>bitXor <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return the bitwise XOR of the integers <em>e1</em> and <em>e2</em>.</p>
+</dd>
+<dt id="builtins-break">
+  <a href="#builtins-break"><code>break <var>v</var></code></a>
+</dt>
+<dd>
+<p>In debug mode (enabled using <code>--debugger</code>), pause Nix expression evaluation and enter the REPL.
+Otherwise, return the argument <code>v</code>.</p>
+</dd>
+<dt id="builtins-builtins">
+  <a href="#builtins-builtins"><code>builtins</code></a> (set)
+</dt>
+<dd>
+<p>Contains all the built-in functions and values.</p>
+<p>Since built-in functions were added over time, <a href='/manual/nix/2.28/language/operators#has-attribute'>testing for attributes</a> in <code>builtins</code> can be used for graceful fallback on older Nix installations:</p>
+<pre><code class="language-nix"># if hasContext is not available, we assume `s` has a context
+if builtins ? hasContext then builtins.hasContext s else true
+</code></pre>
+</dd>
+<dt id="builtins-catAttrs">
+  <a href="#builtins-catAttrs"><code>catAttrs <var>attr</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Collect each attribute named <em>attr</em> from a list of attribute
+sets.  Attrsets that don't contain the named attribute are
+ignored. For example,</p>
+<pre><code class="language-nix">builtins.catAttrs "a" [{a = 1;} {b = 0;} {a = 2;}]
+</code></pre>
+<p>evaluates to <code>[1 2]</code>.</p>
+</dd>
+<dt id="builtins-ceil">
+  <a href="#builtins-ceil"><code>ceil <var>double</var></code></a>
+</dt>
+<dd>
+<p>Converts an IEEE-754 double-precision floating-point number (<em>double</em>) to
+the next higher integer.</p>
+<p>If the datatype is neither an integer nor a "float", an evaluation error will be
+thrown.</p>
+</dd>
+<dt id="builtins-compareVersions">
+  <a href="#builtins-compareVersions"><code>compareVersions <var>s1</var> <var>s2</var></code></a>
+</dt>
+<dd>
+<p>Compare two strings representing versions and return <code>-1</code> if
+version <em>s1</em> is older than version <em>s2</em>, <code>0</code> if they are the same,
+and <code>1</code> if <em>s1</em> is newer than <em>s2</em>. The version comparison
+algorithm is the same as the one used by <a href='/manual/nix/2.28/command-ref/nix-env#operation---upgrade'><code>nix-env -u</code></a>.</p>
+</dd>
+<dt id="builtins-concatLists">
+  <a href="#builtins-concatLists"><code>concatLists <var>lists</var></code></a>
+</dt>
+<dd>
+<p>Concatenate a list of lists into a single list.</p>
+</dd>
+<dt id="builtins-concatMap">
+  <a href="#builtins-concatMap"><code>concatMap <var>f</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>This function is equivalent to <code>builtins.concatLists (map f list)</code>
+but is more efficient.</p>
+</dd>
+<dt id="builtins-concatStringsSep">
+  <a href="#builtins-concatStringsSep"><code>concatStringsSep <var>separator</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Concatenate a list of strings with a separator between each
+element, e.g. <code>concatStringsSep "/" ["usr" "local" "bin"] == "usr/local/bin"</code>.</p>
+</dd>
+<dt id="builtins-convertHash">
+  <a href="#builtins-convertHash"><code>convertHash <var>args</var></code></a>
+</dt>
+<dd>
+<p>Return the specified representation of a hash string, based on the attributes presented in <em>args</em>:</p>
+<ul>
+<li>
+<p><code>hash</code></p>
+<p>The hash to be converted.
+The hash format is detected automatically.</p>
+</li>
+<li>
+<p><code>hashAlgo</code></p>
+<p>The algorithm used to create the hash. Must be one of</p>
+<ul>
+<li><code>"md5"</code></li>
+<li><code>"sha1"</code></li>
+<li><code>"sha256"</code></li>
+<li><code>"sha512"</code></li>
+</ul>
+<p>The attribute may be omitted when <code>hash</code> is an <a href="https://www.w3.org/TR/SRI/#the-integrity-attribute">SRI hash</a> or when the hash is prefixed with the hash algorithm name followed by a colon.
+That <code>&lt;hashAlgo&gt;:&lt;hashBody&gt;</code> syntax is supported for backwards compatibility with existing tooling.</p>
+</li>
+<li>
+<p><code>toHashFormat</code></p>
+<p>The format of the resulting hash. Must be one of</p>
+<ul>
+<li><code>"base16"</code></li>
+<li><code>"nix32"</code></li>
+<li><code>"base32"</code> (deprecated alias for <code>"nix32"</code>)</li>
+<li><code>"base64"</code></li>
+<li><code>"sri"</code></li>
+</ul>
+</li>
+</ul>
+<p>The result hash is the <em>toHashFormat</em> representation of the hash <em>hash</em>.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>Convert a SHA256 hash in Base16 to SRI:</p>
+<pre><code class="language-nix">builtins.convertHash {
+  hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+  toHashFormat = "sri";
+  hashAlgo = "sha256";
+}
+</code></pre>
+<pre><code>"sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+</code></pre>
+</blockquote>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>Convert a SHA256 hash in SRI to Base16:</p>
+<pre><code class="language-nix">builtins.convertHash {
+  hash = "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=";
+  toHashFormat = "base16";
+}
+</code></pre>
+<pre><code>"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+</code></pre>
+</blockquote>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>Convert a hash in the form <code>&lt;hashAlgo&gt;:&lt;hashBody&gt;</code> in Base16 to SRI:</p>
+<pre><code class="language-nix">builtins.convertHash {
+  hash = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+  toHashFormat = "sri";
+}
+</code></pre>
+<pre><code>"sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+</code></pre>
+</blockquote>
+</dd>
+<dt id="builtins-currentSystem">
+  <a href="#builtins-currentSystem"><code>currentSystem</code></a> (string)
+</dt>
+<dd>
+<p>The value of the
+<a href='/manual/nix/2.28/command-ref/conf-file#conf-eval-system'><code>eval-system</code></a>
+or else
+<a href='/manual/nix/2.28/command-ref/conf-file#conf-system'><code>system</code></a>
+configuration option.</p>
+<p>It can be used to set the <code>system</code> attribute for <a href='/manual/nix/2.28/language/derivations'><code>builtins.derivation</code></a> such that the resulting derivation can be built on the same system that evaluates the Nix expression:</p>
+<pre><code class="language-nix"> builtins.derivation {
+   # ...
+   system = builtins.currentSystem;
+}
+</code></pre>
+<p>It can be overridden in order to create derivations for different system than the current one:</p>
+<pre><code class="language-console">$ nix-instantiate --system "mips64-linux" --eval --expr 'builtins.currentSystem'
+"mips64-linux"
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Not available in <a href='/manual/nix/2.28/command-ref/conf-file#conf-pure-eval'>pure evaluation mode</a>.</p>
+</blockquote>
+</dd>
+<dt id="builtins-currentTime">
+  <a href="#builtins-currentTime"><code>currentTime</code></a> (integer)
+</dt>
+<dd>
+<p>Return the <a href="https://en.wikipedia.org/wiki/Unix_time">Unix time</a> at first evaluation.
+Repeated references to that name will re-use the initially obtained value.</p>
+<p>Example:</p>
+<pre><code class="language-console">$ nix repl
+Welcome to Nix 2.15.1 Type :? for help.
+
+nix-repl&gt; builtins.currentTime
+1683705525
+
+nix-repl&gt; builtins.currentTime
+1683705525
+</code></pre>
+<p>The <a href='/manual/nix/2.28/store/store-path'>store path</a> of a derivation depending on <code>currentTime</code> will differ for each evaluation, unless both evaluate <code>builtins.currentTime</code> in the same second.</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Not available in <a href='/manual/nix/2.28/command-ref/conf-file#conf-pure-eval'>pure evaluation mode</a>.</p>
+</blockquote>
+</dd>
+<dt id="builtins-deepSeq">
+  <a href="#builtins-deepSeq"><code>deepSeq <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>This is like <code>seq e1 e2</code>, except that <em>e1</em> is evaluated <em>deeply</em>:
+if it’s a list or set, its elements or attributes are also
+evaluated recursively.</p>
+</dd>
+<dt id="builtins-dirOf">
+  <a href="#builtins-dirOf"><code>dirOf <var>s</var></code></a>
+</dt>
+<dd>
+<p>Return the directory part of the string <em>s</em>, that is, everything
+before the final slash in the string. This is similar to the GNU
+<code>dirname</code> command.</p>
+</dd>
+<dt id="builtins-div">
+  <a href="#builtins-div"><code>div <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return the quotient of the numbers <em>e1</em> and <em>e2</em>.</p>
+</dd>
+<dt id="builtins-elem">
+  <a href="#builtins-elem"><code>elem <var>x</var> <var>xs</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if a value equal to <em>x</em> occurs in the list <em>xs</em>, and
+<code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-elemAt">
+  <a href="#builtins-elemAt"><code>elemAt <var>xs</var> <var>n</var></code></a>
+</dt>
+<dd>
+<p>Return element <em>n</em> from the list <em>xs</em>. Elements are counted starting
+from 0. A fatal error occurs if the index is out of bounds.</p>
+</dd>
+<dt id="builtins-false">
+  <a href="#builtins-false"><code>false</code></a> (Boolean)
+</dt>
+<dd>
+<p>Primitive value.</p>
+<p>It can be returned by
+<a href='/manual/nix/2.28/language/operators#Comparison'>comparison operators</a>
+and used in
+<a href='/manual/nix/2.28/language/syntax#Conditionals'>conditional expressions</a>.</p>
+<p>The name <code>false</code> is not special, and can be shadowed:</p>
+<pre><code class="language-nix-repl">nix-repl&gt; let false = 1; in false
+1
+</code></pre>
+</dd>
+<dt id="builtins-fetchClosure">
+  <a href="#builtins-fetchClosure"><code>fetchClosure <var>args</var></code></a>
+</dt>
+<dd>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>This function is only available if the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-fetch-closure'><code>fetch-closure</code> experimental feature</a> is enabled.</p>
+<p>For example, include the following in <a href='/manual/nix/2.28/command-ref/conf-file'><code>nix.conf</code></a>:</p>
+<pre><code>extra-experimental-features = fetch-closure
+</code></pre>
+</blockquote>
+<p>Fetch a store path <a href='/manual/nix/2.28/glossary#gloss-closure'>closure</a> from a binary cache, and return the store path as a string with context.</p>
+<p>This function can be invoked in three ways, that we will discuss in order of preference.</p>
+<p><strong>Fetch a content-addressed store path</strong></p>
+<p>Example:</p>
+<pre><code class="language-nix">builtins.fetchClosure {
+  fromStore = "https://cache.nixos.org";
+  fromPath = /nix/store/ldbhlwhh39wha58rm61bkiiwm6j7211j-git-2.33.1;
+}
+</code></pre>
+<p>This is the simplest invocation, and it does not require the user of the expression to configure <a href='/manual/nix/2.28/command-ref/conf-file#conf-trusted-public-keys'><code>trusted-public-keys</code></a> to ensure their authenticity.</p>
+<p>If your store path is <a href='/manual/nix/2.28/glossary#gloss-input-addressed-store-object'>input addressed</a> instead of content addressed, consider the other two invocations.</p>
+<p><strong>Fetch any store path and rewrite it to a fully content-addressed store path</strong></p>
+<p>Example:</p>
+<pre><code class="language-nix">builtins.fetchClosure {
+  fromStore = "https://cache.nixos.org";
+  fromPath = /nix/store/r2jd6ygnmirm2g803mksqqjm4y39yi6i-git-2.33.1;
+  toPath = /nix/store/ldbhlwhh39wha58rm61bkiiwm6j7211j-git-2.33.1;
+}
+</code></pre>
+<p>This example fetches <code>/nix/store/r2jd...</code> from the specified binary cache,
+and rewrites it into the content-addressed store path
+<code>/nix/store/ldbh...</code>.</p>
+<p>Like the previous example, no extra configuration or privileges are required.</p>
+<p>To find out the correct value for <code>toPath</code> given a <code>fromPath</code>,
+use <a href='/manual/nix/2.28/command-ref/new-cli/nix3-store-make-content-addressed'><code>nix store make-content-addressed</code></a>:</p>
+<pre><code class="language-console"># nix store make-content-addressed --from https://cache.nixos.org /nix/store/r2jd6ygnmirm2g803mksqqjm4y39yi6i-git-2.33.1
+rewrote '/nix/store/r2jd6ygnmirm2g803mksqqjm4y39yi6i-git-2.33.1' to '/nix/store/ldbhlwhh39wha58rm61bkiiwm6j7211j-git-2.33.1'
+</code></pre>
+<p>Alternatively, set <code>toPath = ""</code> and find the correct <code>toPath</code> in the error message.</p>
+<p><strong>Fetch an input-addressed store path as is</strong></p>
+<p>Example:</p>
+<pre><code class="language-nix">builtins.fetchClosure {
+  fromStore = "https://cache.nixos.org";
+  fromPath = /nix/store/r2jd6ygnmirm2g803mksqqjm4y39yi6i-git-2.33.1;
+  inputAddressed = true;
+}
+</code></pre>
+<p>It is possible to fetch an <a href='/manual/nix/2.28/glossary#gloss-input-addressed-store-object'>input-addressed store path</a> and return it as is.
+However, this is the least preferred way of invoking <code>fetchClosure</code>, because it requires that the input-addressed paths are trusted by the Nix configuration.</p>
+<p><strong><code>builtins.storePath</code></strong></p>
+<p><code>fetchClosure</code> is similar to <a href="#builtins-storePath"><code>builtins.storePath</code></a> in that it allows you to use a previously built store path in a Nix expression.
+However, <code>fetchClosure</code> is more reproducible because it specifies a binary cache from which the path can be fetched.
+Also, using content-addressed store paths does not require users to configure <a href='/manual/nix/2.28/command-ref/conf-file#conf-trusted-public-keys'><code>trusted-public-keys</code></a> to ensure their authenticity.</p>
+</dd>
+<dt id="builtins-fetchGit">
+  <a href="#builtins-fetchGit"><code>fetchGit <var>args</var></code></a>
+</dt>
+<dd>
+<p>Fetch a path from git. <em>args</em> can be a URL, in which case the HEAD
+of the repo at that URL is fetched. Otherwise, it can be an
+attribute with the following attributes (all except <code>url</code> optional):</p>
+<ul>
+<li>
+<p><code>url</code></p>
+<p>The URL of the repo.</p>
+</li>
+<li>
+<p><code>name</code> (default: <code>source</code>)</p>
+<p>The name of the directory the repo should be exported to in the store.</p>
+</li>
+<li>
+<p><code>rev</code> (default: <em>the tip of <code>ref</code></em>)</p>
+<p>The <a href="https://git-scm.com/docs/git-rev-parse#_specifying_revisions">Git revision</a> to fetch.
+This is typically a commit hash.</p>
+</li>
+<li>
+<p><code>ref</code> (default: <code>HEAD</code>)</p>
+<p>The <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-References">Git reference</a> under which to look for the requested revision.
+This is often a branch or tag name.</p>
+<p>This option has no effect once <code>shallow</code> cloning is enabled.</p>
+<p>By default, the <code>ref</code> value is prefixed with <code>refs/heads/</code>.
+As of 2.3.0, Nix will not prefix <code>refs/heads/</code> if <code>ref</code> starts with <code>refs/</code>.</p>
+</li>
+<li>
+<p><code>submodules</code> (default: <code>false</code>)</p>
+<p>A Boolean parameter that specifies whether submodules should be checked out.</p>
+</li>
+<li>
+<p><code>exportIgnore</code> (default: <code>true</code>)</p>
+<p>A Boolean parameter that specifies whether <code>export-ignore</code> from <code>.gitattributes</code> should be applied.
+This approximates part of the <code>git archive</code> behavior.</p>
+<p>Enabling this option is not recommended because it is unknown whether the Git developers commit to the reproducibility of <code>export-ignore</code> in newer Git versions.</p>
+</li>
+<li>
+<p><code>shallow</code> (default: <code>false</code>)</p>
+<p>Make a shallow clone when fetching the Git tree.
+When this is enabled, the options <code>ref</code> and <code>allRefs</code> have no effect anymore.</p>
+</li>
+<li>
+<p><code>lfs</code> (default: <code>false</code>)</p>
+<p>A boolean that when <code>true</code> specifies that <a href="https://git-lfs.com/">Git LFS</a> files should be fetched.</p>
+</li>
+<li>
+<p><code>allRefs</code></p>
+<p>Whether to fetch all references (eg. branches and tags) of the repository.
+With this argument being true, it's possible to load a <code>rev</code> from <em>any</em> <code>ref</code>.
+(by default only <code>rev</code>s from the specified <code>ref</code> are supported).</p>
+<p>This option has no effect once <code>shallow</code> cloning is enabled.</p>
+</li>
+<li>
+<p><code>verifyCommit</code> (default: <code>true</code> if <code>publicKey</code> or <code>publicKeys</code> are provided, otherwise <code>false</code>)</p>
+<p>Whether to check <code>rev</code> for a signature matching <code>publicKey</code> or <code>publicKeys</code>.
+If <code>verifyCommit</code> is enabled, then <code>fetchGit</code> cannot use a local repository with uncommitted changes.
+Requires the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-verified-fetches'><code>verified-fetches</code> experimental feature</a>.</p>
+</li>
+<li>
+<p><code>publicKey</code></p>
+<p>The public key against which <code>rev</code> is verified if <code>verifyCommit</code> is enabled.
+Requires the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-verified-fetches'><code>verified-fetches</code> experimental feature</a>.</p>
+</li>
+<li>
+<p><code>keytype</code> (default: <code>"ssh-ed25519"</code>)</p>
+<p>The key type of <code>publicKey</code>.
+Possible values:</p>
+<ul>
+<li><code>"ssh-dsa"</code></li>
+<li><code>"ssh-ecdsa"</code></li>
+<li><code>"ssh-ecdsa-sk"</code></li>
+<li><code>"ssh-ed25519"</code></li>
+<li><code>"ssh-ed25519-sk"</code></li>
+<li><code>"ssh-rsa"</code>
+Requires the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-verified-fetches'><code>verified-fetches</code> experimental feature</a>.</li>
+</ul>
+</li>
+<li>
+<p><code>publicKeys</code></p>
+<p>The public keys against which <code>rev</code> is verified if <code>verifyCommit</code> is enabled.
+Must be given as a list of attribute sets with the following form:</p>
+<pre><code class="language-nix">{
+  key = "&lt;public key&gt;";
+  type = "&lt;key type&gt;"; # optional, default: "ssh-ed25519"
+}
+</code></pre>
+<p>Requires the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-verified-fetches'><code>verified-fetches</code> experimental feature</a>.</p>
+</li>
+</ul>
+<p>Here are some examples of how to use <code>fetchGit</code>.</p>
+<ul>
+<li>
+<p>To fetch a private repository over SSH:</p>
+<pre><code class="language-nix">builtins.fetchGit {
+  url = "git@github.com:my-secret/repository.git";
+  ref = "master";
+  rev = "adab8b916a45068c044658c4158d81878f9ed1c3";
+}
+</code></pre>
+</li>
+<li>
+<p>To fetch an arbitrary reference:</p>
+<pre><code class="language-nix">builtins.fetchGit {
+  url = "https://github.com/NixOS/nix.git";
+  ref = "refs/heads/0.5-release";
+}
+</code></pre>
+</li>
+<li>
+<p>If the revision you're looking for is in the default branch of
+the git repository you don't strictly need to specify the branch
+name in the <code>ref</code> attribute.</p>
+<p>However, if the revision you're looking for is in a future
+branch for the non-default branch you will need to specify the
+the <code>ref</code> attribute as well.</p>
+<pre><code class="language-nix">builtins.fetchGit {
+  url = "https://github.com/nixos/nix.git";
+  rev = "841fcbd04755c7a2865c51c1e2d3b045976b7452";
+  ref = "1.11-maintenance";
+}
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>It is nice to always specify the branch which a revision
+belongs to. Without the branch being specified, the fetcher
+might fail if the default branch changes. Additionally, it can
+be confusing to try a commit from a non-default branch and see
+the fetch fail. If the branch is specified the fault is much
+more obvious.</p>
+</blockquote>
+</li>
+<li>
+<p>If the revision you're looking for is in the default branch of
+the git repository you may omit the <code>ref</code> attribute.</p>
+<pre><code class="language-nix">builtins.fetchGit {
+  url = "https://github.com/nixos/nix.git";
+  rev = "841fcbd04755c7a2865c51c1e2d3b045976b7452";
+}
+</code></pre>
+</li>
+<li>
+<p>To fetch a specific tag:</p>
+<pre><code class="language-nix">builtins.fetchGit {
+  url = "https://github.com/nixos/nix.git";
+  ref = "refs/tags/1.9";
+}
+</code></pre>
+</li>
+<li>
+<p>To fetch the latest version of a remote branch:</p>
+<pre><code class="language-nix">builtins.fetchGit {
+  url = "ssh://git@github.com/nixos/nix.git";
+  ref = "master";
+}
+</code></pre>
+</li>
+<li>
+<p>To verify the commit signature:</p>
+<pre><code class="language-nix">builtins.fetchGit {
+  url = "ssh://git@github.com/nixos/nix.git";
+  verifyCommit = true;
+  publicKeys = [
+      {
+        type = "ssh-ed25519";
+        key = "AAAAC3NzaC1lZDI1NTE5AAAAIArPKULJOid8eS6XETwUjO48/HKBWl7FTCK0Z//fplDi";
+      }
+  ];
+}
+</code></pre>
+<p>Nix will refetch the branch according to the <a href='/manual/nix/2.28/command-ref/conf-file#conf-tarball-ttl'><code>tarball-ttl</code></a> setting.</p>
+<p>This behavior is disabled in <a href='/manual/nix/2.28/command-ref/conf-file#conf-pure-eval'>pure evaluation mode</a>.</p>
+</li>
+<li>
+<p>To fetch the content of a checked-out work directory:</p>
+<pre><code class="language-nix">builtins.fetchGit ./work-dir
+</code></pre>
+</li>
+</ul>
+<p>If the URL points to a local directory, and no <code>ref</code> or <code>rev</code> is
+given, <code>fetchGit</code> will use the current content of the checked-out
+files, even if they are not committed or added to Git's index. It will
+only consider files added to the Git repository, as listed by <code>git ls-files</code>.</p>
+</dd>
+<dt id="builtins-fetchTarball">
+  <a href="#builtins-fetchTarball"><code>fetchTarball <var>args</var></code></a>
+</dt>
+<dd>
+<p>Download the specified URL, unpack it and return the path of the
+unpacked tree. The file must be a tape archive (<code>.tar</code>) compressed
+with <code>gzip</code>, <code>bzip2</code> or <code>xz</code>. If the tarball consists of a
+single directory, then the top-level path component of the files
+in the tarball is removed. The typical use of the function is to
+obtain external Nix expression dependencies, such as a
+particular version of Nixpkgs, e.g.</p>
+<pre><code class="language-nix">with import (fetchTarball https://github.com/NixOS/nixpkgs/archive/nixos-14.12.tar.gz) {};
+
+stdenv.mkDerivation { … }
+</code></pre>
+<p>The fetched tarball is cached for a certain amount of time (1
+hour by default) in <code>~/.cache/nix/tarballs/</code>. You can change the
+cache timeout either on the command line with <code>--tarball-ttl</code>
+<em>number-of-seconds</em> or in the Nix configuration file by adding
+the line <code>tarball-ttl = </code> <em>number-of-seconds</em>.</p>
+<p>Note that when obtaining the hash with <code>nix-prefetch-url</code> the
+option <code>--unpack</code> is required.</p>
+<p>This function can also verify the contents against a hash. In that
+case, the function takes a set instead of a URL. The set requires
+the attribute <code>url</code> and the attribute <code>sha256</code>, e.g.</p>
+<pre><code class="language-nix">with import (fetchTarball {
+  url = "https://github.com/NixOS/nixpkgs/archive/nixos-14.12.tar.gz";
+  sha256 = "1jppksrfvbk5ypiqdz4cddxdl8z6zyzdb2srq8fcffr327ld5jj2";
+}) {};
+
+stdenv.mkDerivation { … }
+</code></pre>
+<p>Not available in <a href='/manual/nix/2.28/command-ref/conf-file#conf-restrict-eval'>restricted evaluation mode</a>.</p>
+</dd>
+<dt id="builtins-fetchTree">
+  <a href="#builtins-fetchTree"><code>fetchTree <var>input</var></code></a>
+</dt>
+<dd>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>This function is only available if the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-fetch-tree'><code>fetch-tree</code> experimental feature</a> is enabled.</p>
+<p>For example, include the following in <a href='/manual/nix/2.28/command-ref/conf-file'><code>nix.conf</code></a>:</p>
+<pre><code>extra-experimental-features = fetch-tree
+</code></pre>
+</blockquote>
+<p>Fetch a file system tree or a plain file using one of the supported backends and return an attribute set with:</p>
+<ul>
+<li>the resulting fixed-output <a href='/manual/nix/2.28/store/store-path'>store path</a></li>
+<li>the corresponding <a href='/manual/nix/2.28/store/file-system-object/content-address#serial-nix-archive'>NAR</a> hash</li>
+<li>backend-specific metadata (currently not documented). <!-- TODO: document output attributes --></li>
+</ul>
+<p><em>input</em> must be an attribute set with the following attributes:</p>
+<ul>
+<li>
+<p><code>type</code> (String, required)</p>
+<p>One of the <a href="#source-types">supported source types</a>.
+This determines other required and allowed input attributes.</p>
+</li>
+<li>
+<p><code>narHash</code> (String, optional)</p>
+<p>The <code>narHash</code> parameter can be used to substitute the source of the tree.
+It also allows for verification of tree contents that may not be provided by the underlying transfer mechanism.
+If <code>narHash</code> is set, the source is first looked up is the Nix store and <a href='/manual/nix/2.28/command-ref/conf-file#conf-substituters'>substituters</a>, and only fetched if not available.</p>
+</li>
+</ul>
+<p>A subset of the output attributes of <code>fetchTree</code> can be re-used for subsequent calls to <code>fetchTree</code> to produce the same result again.
+That is, <code>fetchTree</code> is idempotent.</p>
+<p>Downloads are cached in <code>$XDG_CACHE_HOME/nix</code>.
+The remote source will be fetched from the network if both are true:</p>
+<ul>
+<li>
+<p>A NAR hash is supplied and the corresponding store path is not <a href='/manual/nix/2.28/glossary#gloss-validity'>valid</a>, that is, not available in the store</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p><a href='/manual/nix/2.28/command-ref/conf-file#conf-substituters'>Substituters</a> are not used in fetching.</p>
+</blockquote>
+</li>
+<li>
+<p>There is no cache entry or the cache entry is older than <a href='/manual/nix/2.28/command-ref/conf-file#conf-tarball-ttl'><code>tarball-ttl</code></a></p>
+</li>
+</ul>
+<h2 id="source-types"><a class="header" href="#source-types">Source types</a></h2>
+<p>The following source types and associated input attributes are supported.</p>
+ <!-- TODO: It would be soooo much more predictable to work with (and
+ document) if `fetchTree` was a curried call with the first parameter for
+ `type` or an attribute like `builtins.fetchTree.git`! -->
+<ul>
+<li>
+<p><code>"file"</code></p>
+<p>Place a plain file into the Nix store.
+This is similar to <a href='/manual/nix/2.28/language/builtins#builtins-fetchurl'><code>builtins.fetchurl</code></a></p>
+<ul>
+<li>
+<p><code>url</code> (String, required)</p>
+<p>Supported protocols:</p>
+<ul>
+<li>
+<p><code>https</code></p>
+<blockquote>
+<p><strong>Example</strong></p>
+<pre><code class="language-nix">fetchTree {
+  type = "file";
+  url = "https://example.com/index.html";
+}
+</code></pre>
+</blockquote>
+</li>
+<li>
+<p><code>http</code></p>
+<p>Insecure HTTP transfer for legacy sources.</p>
+<blockquote>
+<p><strong>Warning</strong></p>
+<p>HTTP performs no encryption or authentication.
+Use a <code>narHash</code> known in advance to ensure the output has expected contents.</p>
+</blockquote>
+</li>
+<li>
+<p><code>file</code></p>
+<p>A file on the local file system.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<pre><code class="language-nix">fetchTree {
+  type = "file";
+  url = "file:///home/eelco/nix/README.md";
+}
+</code></pre>
+</blockquote>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>"tarball"</code></p>
+<p>Download a tar archive and extract it into the Nix store.
+This has the same underyling implementation as <a href='/manual/nix/2.28/language/builtins#builtins-fetchTarball'><code>builtins.fetchTarball</code></a></p>
+<ul>
+<li>
+<p><code>url</code> (String, required)</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<pre><code class="language-nix">fetchTree {
+  type = "tarball";
+  url = "https://github.com/NixOS/nixpkgs/tarball/nixpkgs-23.11";
+}
+</code></pre>
+</blockquote>
+</li>
+</ul>
+</li>
+<li>
+<p><code>"git"</code></p>
+<p>Fetch a Git tree and copy it to the Nix store.
+This is similar to <a href='/manual/nix/2.28/language/builtins#builtins-fetchGit'><code>builtins.fetchGit</code></a>.</p>
+<ul>
+<li>
+<p><code>url</code> (String, required)</p>
+<p>The URL formats supported are the same as for Git itself.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<pre><code class="language-nix">fetchTree {
+  type = "git";
+  url = "git@github.com:NixOS/nixpkgs.git";
+}
+</code></pre>
+</blockquote>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>If the URL points to a local directory, and no <code>ref</code> or <code>rev</code> is given, Nix will only consider files added to the Git index, as listed by <code>git ls-files</code> but use the <em>current file contents</em> of the Git working directory.</p>
+</blockquote>
+</li>
+<li>
+<p><code>ref</code> (String, optional)</p>
+<p>By default, this has no effect. This becomes relevant only once <code>shallow</code> cloning is disabled.</p>
+<p>A <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-References">Git reference</a>, such as a branch or tag name.</p>
+<p>Default: <code>"HEAD"</code></p>
+</li>
+<li>
+<p><code>rev</code> (String, optional)</p>
+<p>A Git revision; a commit hash.</p>
+<p>Default: the tip of <code>ref</code></p>
+</li>
+<li>
+<p><code>shallow</code> (Bool, optional)</p>
+<p>Make a shallow clone when fetching the Git tree.
+When this is enabled, the options <code>ref</code> and <code>allRefs</code> have no effect anymore.</p>
+<p>Default: <code>true</code></p>
+</li>
+<li>
+<p><code>submodules</code> (Bool, optional)</p>
+<p>Also fetch submodules if available.</p>
+<p>Default: <code>false</code></p>
+</li>
+<li>
+<p><code>lfs</code> (Bool, optional)</p>
+<p>Fetch any <a href="https://git-lfs.com/">Git LFS</a> files.</p>
+<p>Default: <code>false</code></p>
+</li>
+<li>
+<p><code>allRefs</code> (Bool, optional)</p>
+<p>By default, this has no effect. This becomes relevant only once <code>shallow</code> cloning is disabled.</p>
+<p>Whether to fetch all references (eg. branches and tags) of the repository.
+With this argument being true, it's possible to load a <code>rev</code> from <em>any</em> <code>ref</code>.
+(Without setting this option, only <code>rev</code>s from the specified <code>ref</code> are supported).</p>
+<p>Default: <code>false</code></p>
+</li>
+<li>
+<p><code>lastModified</code> (Integer, optional)</p>
+<p>Unix timestamp of the fetched commit.</p>
+<p>If set, pass through the value to the output attribute set.
+Otherwise, generated from the fetched Git tree.</p>
+</li>
+<li>
+<p><code>revCount</code> (Integer, optional)</p>
+<p>Number of revisions in the history of the Git repository before the fetched commit.</p>
+<p>If set, pass through the value to the output attribute set.
+Otherwise, generated from the fetched Git tree.</p>
+</li>
+</ul>
+</li>
+</ul>
+<p>The following input types are still subject to change:</p>
+<ul>
+<li><code>"path"</code></li>
+<li><code>"github"</code></li>
+<li><code>"gitlab"</code></li>
+<li><code>"sourcehut"</code></li>
+<li><code>"mercurial"</code></li>
+</ul>
+<p><em>input</em> can also be a <a href='/manual/nix/2.28/command-ref/new-cli/nix3-flake#flake-references'>URL-like reference</a>.
+The additional input types and the URL-like syntax requires the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-flakes'><code>flakes</code> experimental feature</a> to be enabled.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>Fetch a GitHub repository using the attribute set representation:</p>
+<pre><code class="language-nix">builtins.fetchTree {
+  type = "github";
+  owner = "NixOS";
+  repo = "nixpkgs";
+  rev = "ae2e6b3958682513d28f7d633734571fb18285dd";
+}
+</code></pre>
+<p>This evaluates to the following attribute set:</p>
+<pre><code class="language-nix">{
+  lastModified = 1686503798;
+  lastModifiedDate = "20230611171638";
+  narHash = "sha256-rA9RqKP9OlBrgGCPvfd5HVAXDOy8k2SmPtB/ijShNXc=";
+  outPath = "/nix/store/l5m6qlvfs9sdw14ja3qbzpglcjlb6j1x-source";
+  rev = "ae2e6b3958682513d28f7d633734571fb18285dd";
+  shortRev = "ae2e6b3";
+}
+</code></pre>
+</blockquote>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>Fetch the same GitHub repository using the URL-like syntax:</p>
+<pre><code class="language-nix">builtins.fetchTree "github:NixOS/nixpkgs/ae2e6b3958682513d28f7d633734571fb18285dd"
+</code></pre>
+</blockquote>
+</dd>
+<dt id="builtins-fetchurl">
+  <a href="#builtins-fetchurl"><code>fetchurl <var>arg</var></code></a>
+</dt>
+<dd>
+<p>Download the specified URL and return the path of the downloaded file.
+<code>arg</code> can be either a string denoting the URL, or an attribute set with the following attributes:</p>
+<ul>
+<li>
+<p><code>url</code></p>
+<p>The URL of the file to download.</p>
+</li>
+<li>
+<p><code>name</code> (default: the last path component of the URL)</p>
+<p>A name for the file in the store. This can be useful if the URL has any
+characters that are invalid for the store.</p>
+</li>
+</ul>
+<p>Not available in <a href='/manual/nix/2.28/command-ref/conf-file#conf-restrict-eval'>restricted evaluation mode</a>.</p>
+</dd>
+<dt id="builtins-filter">
+  <a href="#builtins-filter"><code>filter <var>f</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Return a list consisting of the elements of <em>list</em> for which the
+function <em>f</em> returns <code>true</code>.</p>
+</dd>
+<dt id="builtins-filterSource">
+  <a href="#builtins-filterSource"><code>filterSource <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<blockquote>
+<p><strong>Warning</strong></p>
+<p><code>filterSource</code> should not be used to filter store paths. Since
+<code>filterSource</code> uses the name of the input directory while naming
+the output directory, doing so will produce a directory name in
+the form of <code>&lt;hash2&gt;-&lt;hash&gt;-&lt;name&gt;</code>, where <code>&lt;hash&gt;-&lt;name&gt;</code> is
+the name of the input directory. Since <code>&lt;hash&gt;</code> depends on the
+unfiltered directory, the name of the output directory will
+indirectly depend on files that are filtered out by the
+function. This will trigger a rebuild even when a filtered out
+file is changed. Use <code>builtins.path</code> instead, which allows
+specifying the name of the output directory.</p>
+</blockquote>
+<p>This function allows you to copy sources into the Nix store while
+filtering certain files. For instance, suppose that you want to use
+the directory <code>source-dir</code> as an input to a Nix expression, e.g.</p>
+<pre><code class="language-nix">stdenv.mkDerivation {
+  ...
+  src = ./source-dir;
+}
+</code></pre>
+<p>However, if <code>source-dir</code> is a Subversion working copy, then all
+those annoying <code>.svn</code> subdirectories will also be copied to the
+store. Worse, the contents of those directories may change a lot,
+causing lots of spurious rebuilds. With <code>filterSource</code> you can
+filter out the <code>.svn</code> directories:</p>
+<pre><code class="language-nix">src = builtins.filterSource
+  (path: type: type != "directory" || baseNameOf path != ".svn")
+  ./source-dir;
+</code></pre>
+<p>Thus, the first argument <em>e1</em> must be a predicate function that is
+called for each regular file, directory or symlink in the source
+tree <em>e2</em>. If the function returns <code>true</code>, the file is copied to the
+Nix store, otherwise it is omitted. The function is called with two
+arguments. The first is the full path of the file. The second is a
+string that identifies the type of the file, which is either
+<code>"regular"</code>, <code>"directory"</code>, <code>"symlink"</code> or <code>"unknown"</code> (for other
+kinds of files such as device nodes or fifos — but note that those
+cannot be copied to the Nix store, so if the predicate returns
+<code>true</code> for them, the copy will fail). If you exclude a directory,
+the entire corresponding subtree of <em>e2</em> will be excluded.</p>
+</dd>
+<dt id="builtins-findFile">
+  <a href="#builtins-findFile"><code>findFile <var>search-path</var> <var>lookup-path</var></code></a>
+</dt>
+<dd>
+<p>Find <em>lookup-path</em> in <em>search-path</em>.</p>
+<p><a href='/manual/nix/2.28/language/constructs/lookup-path'>Lookup path</a> expressions are <a href="https://en.wikipedia.org/wiki/Syntactic_sugar">desugared</a> using this and <a href="#builtins-nixPath"><code>builtins.nixPath</code></a>:</p>
+<pre><code class="language-nix">&lt;nixpkgs&gt;
+</code></pre>
+<p>is equivalent to:</p>
+<pre><code class="language-nix">builtins.findFile builtins.nixPath "nixpkgs"
+</code></pre>
+<p>A search path is represented as a list of <a href='/manual/nix/2.28/language/types#attribute-set'>attribute sets</a> with two attributes:</p>
+<ul>
+<li><code>prefix</code> is a relative path.</li>
+<li><code>path</code> denotes a file system location</li>
+</ul>
+<p>Examples of search path attribute sets:</p>
+<ul>
+<li>
+<pre><code>{
+  prefix = "";
+  path = "/nix/var/nix/profiles/per-user/root/channels";
+}
+</code></pre>
+</li>
+<li>
+<pre><code>{
+  prefix = "nixos-config";
+  path = "/etc/nixos/configuration.nix";
+}
+</code></pre>
+</li>
+<li>
+<pre><code>{
+  prefix = "nixpkgs";
+  path = "https://github.com/NixOS/nixpkgs/tarballs/master";
+}
+</code></pre>
+</li>
+<li>
+<pre><code>{
+  prefix = "nixpkgs";
+  path = "channel:nixpkgs-unstable";
+}
+</code></pre>
+</li>
+<li>
+<pre><code>{
+  prefix = "flake-compat";
+  path = "flake:github:edolstra/flake-compat";
+}
+</code></pre>
+</li>
+</ul>
+<p>The lookup algorithm checks each entry until a match is found, returning a <a href='/manual/nix/2.28/language/types#type-path'>path value</a> of the match:</p>
+<ul>
+<li>
+<p>If a prefix of <code>lookup-path</code> matches <code>prefix</code>, then the remainder of <em>lookup-path</em> (the "suffix") is searched for within the directory denoted by <code>path</code>.
+The contents of <code>path</code> may need to be downloaded at this point to look inside.</p>
+</li>
+<li>
+<p>If the suffix is found inside that directory, then the entry is a match.
+The combined absolute path of the directory (now downloaded if need be) and the suffix is returned.</p>
+</li>
+</ul>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>A <em>search-path</em> value</p>
+<pre><code>[
+  {
+    prefix = "";
+    path = "/home/eelco/Dev";
+  }
+  {
+    prefix = "nixos-config";
+    path = "/etc/nixos";
+  }
+]
+</code></pre>
+<p>and a <em>lookup-path</em> value <code>"nixos-config"</code> will cause Nix to try <code>/home/eelco/Dev/nixos-config</code> and <code>/etc/nixos</code> in that order and return the first path that exists.</p>
+</blockquote>
+<p>If <code>path</code> starts with <code>http://</code> or <code>https://</code>, it is interpreted as the URL of a tarball that will be downloaded and unpacked to a temporary location.
+The tarball must consist of a single top-level directory.</p>
+<p>The URLs of the tarballs from the official <code>nixos.org</code> channels can be abbreviated as <code>channel:&lt;channel-name&gt;</code>.
+See <a href='/manual/nix/2.28/command-ref/nix-channel'>documentation on <code>nix-channel</code></a> for details about channels.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>These two search path entries are equivalent:</p>
+<ul>
+<li>
+<pre><code>{
+  prefix = "nixpkgs";
+  path = "channel:nixpkgs-unstable";
+}
+</code></pre>
+</li>
+<li>
+<pre><code>{
+  prefix = "nixpkgs";
+  path = "https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz";
+}
+</code></pre>
+</li>
+</ul>
+</blockquote>
+<p>Search paths can also point to source trees using <a href='/manual/nix/2.28/command-ref/new-cli/nix3-flake#url-like-syntax'>flake URLs</a>.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>The search path entry</p>
+<pre><code>{
+  prefix = "nixpkgs";
+  path = "flake:nixpkgs";
+}
+</code></pre>
+<p>specifies that the prefix <code>nixpkgs</code> shall refer to the source tree downloaded from the <code>nixpkgs</code> entry in the flake registry.</p>
+<p>Similarly</p>
+<pre><code>{
+  prefix = "nixpkgs";
+  path = "flake:github:nixos/nixpkgs/nixos-22.05";
+}
+</code></pre>
+<p>makes <code>&lt;nixpkgs&gt;</code> refer to a particular branch of the <code>NixOS/nixpkgs</code> repository on GitHub.</p>
+</blockquote>
+</dd>
+<dt id="builtins-flakeRefToString">
+  <a href="#builtins-flakeRefToString"><code>flakeRefToString <var>attrs</var></code></a>
+</dt>
+<dd>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>This function is only available if the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-flakes'><code>flakes</code> experimental feature</a> is enabled.</p>
+<p>For example, include the following in <a href='/manual/nix/2.28/command-ref/conf-file'><code>nix.conf</code></a>:</p>
+<pre><code>extra-experimental-features = flakes
+</code></pre>
+</blockquote>
+<p>Convert a flake reference from attribute set format to URL format.</p>
+<p>For example:</p>
+<pre><code class="language-nix">builtins.flakeRefToString {
+  dir = "lib"; owner = "NixOS"; ref = "23.05"; repo = "nixpkgs"; type = "github";
+}
+</code></pre>
+<p>evaluates to</p>
+<pre><code class="language-nix">"github:NixOS/nixpkgs/23.05?dir=lib"
+</code></pre>
+</dd>
+<dt id="builtins-floor">
+  <a href="#builtins-floor"><code>floor <var>double</var></code></a>
+</dt>
+<dd>
+<p>Converts an IEEE-754 double-precision floating-point number (<em>double</em>) to
+the next lower integer.</p>
+<p>If the datatype is neither an integer nor a "float", an evaluation error will be
+thrown.</p>
+</dd>
+<dt id="builtins-foldl'">
+  <a href="#builtins-foldl'"><code>foldl' <var>op</var> <var>nul</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Reduce a list by applying a binary operator, from left to right,
+e.g. <code>foldl' op nul [x0 x1 x2 ...] = op (op (op nul x0) x1) x2) ...</code>.</p>
+<p>For example, <code>foldl' (acc: elem: acc + elem) 0 [1 2 3]</code> evaluates
+to <code>6</code> and <code>foldl' (acc: elem: { "${elem}" = elem; } // acc) {} ["a" "b"]</code> evaluates to <code>{ a = "a"; b = "b"; }</code>.</p>
+<p>The first argument of <code>op</code> is the accumulator whereas the second
+argument is the current element being processed. The return value
+of each application of <code>op</code> is evaluated immediately, even for
+intermediate values.</p>
+</dd>
+<dt id="builtins-fromJSON">
+  <a href="#builtins-fromJSON"><code>fromJSON <var>e</var></code></a>
+</dt>
+<dd>
+<p>Convert a JSON string to a Nix value. For example,</p>
+<pre><code class="language-nix">builtins.fromJSON ''{"x": [1, 2, 3], "y": null}''
+</code></pre>
+<p>returns the value <code>{ x = [ 1 2 3 ]; y = null; }</code>.</p>
+</dd>
+<dt id="builtins-fromTOML">
+  <a href="#builtins-fromTOML"><code>fromTOML <var>e</var></code></a>
+</dt>
+<dd>
+<p>Convert a TOML string to a Nix value. For example,</p>
+<pre><code class="language-nix">builtins.fromTOML ''
+  x=1
+  s="a"
+  [table]
+  y=2
+''
+</code></pre>
+<p>returns the value <code>{ s = "a"; table = { y = 2; }; x = 1; }</code>.</p>
+</dd>
+<dt id="builtins-functionArgs">
+  <a href="#builtins-functionArgs"><code>functionArgs <var>f</var></code></a>
+</dt>
+<dd>
+<p>Return a set containing the names of the formal arguments expected
+by the function <em>f</em>. The value of each attribute is a Boolean
+denoting whether the corresponding argument has a default value. For
+instance, <code>functionArgs ({ x, y ? 123}: ...) = { x = false; y = true; }</code>.</p>
+<p>"Formal argument" here refers to the attributes pattern-matched by
+the function. Plain lambdas are not included, e.g. <code>functionArgs (x: ...) = { }</code>.</p>
+</dd>
+<dt id="builtins-genList">
+  <a href="#builtins-genList"><code>genList <var>generator</var> <var>length</var></code></a>
+</dt>
+<dd>
+<p>Generate list of size <em>length</em>, with each element <em>i</em> equal to the
+value returned by <em>generator</em> <code>i</code>. For example,</p>
+<pre><code class="language-nix">builtins.genList (x: x * x) 5
+</code></pre>
+<p>returns the list <code>[ 0 1 4 9 16 ]</code>.</p>
+</dd>
+<dt id="builtins-genericClosure">
+  <a href="#builtins-genericClosure"><code>genericClosure <var>attrset</var></code></a>
+</dt>
+<dd>
+<p><code>builtins.genericClosure</code> iteratively computes the transitive closure over an arbitrary relation defined by a function.</p>
+<p>It takes <em>attrset</em> with two attributes named <code>startSet</code> and <code>operator</code>, and returns a list of attribute sets:</p>
+<ul>
+<li>
+<p><code>startSet</code>:
+The initial list of attribute sets.</p>
+</li>
+<li>
+<p><code>operator</code>:
+A function that takes an attribute set and returns a list of attribute sets.
+It defines how each item in the current set is processed and expanded into more items.</p>
+</li>
+</ul>
+<p>Each attribute set in the list <code>startSet</code> and the list returned by <code>operator</code> must have an attribute <code>key</code>, which must support equality comparison.
+The value of <code>key</code> can be one of the following types:</p>
+<ul>
+<li><a href='/manual/nix/2.28/language/types#type-int'>Int</a></li>
+<li><a href='/manual/nix/2.28/language/types#type-float'>Float</a></li>
+<li><a href='/manual/nix/2.28/language/types#type-boolean'>Boolean</a></li>
+<li><a href='/manual/nix/2.28/language/types#type-string'>String</a></li>
+<li><a href='/manual/nix/2.28/language/types#type-path'>Path</a></li>
+<li><a href='/manual/nix/2.28/language/types#list'>List</a></li>
+</ul>
+<p>The result is produced by calling the <code>operator</code> on each <code>item</code> that has not been called yet, including newly added items, until no new items are added.
+Items are compared by their <code>key</code> attribute.</p>
+<p>Common usages are:</p>
+<ul>
+<li>Generating unique collections of items, such as dependency graphs.</li>
+<li>Traversing through structures that may contain cycles or loops.</li>
+<li>Processing data structures with complex internal relationships.</li>
+</ul>
+<blockquote>
+<p><strong>Example</strong></p>
+<pre><code class="language-nix">builtins.genericClosure {
+  startSet = [ {key = 5;} ];
+  operator = item: [{
+    key = if (item.key / 2 ) * 2 == item.key
+         then item.key / 2
+         else 3 * item.key + 1;
+  }];
+}
+</code></pre>
+<p>evaluates to</p>
+<pre><code class="language-nix">[ { key = 5; } { key = 16; } { key = 8; } { key = 4; } { key = 2; } { key = 1; } ]
+</code></pre>
+</blockquote>
+</dd>
+<dt id="builtins-getAttr">
+  <a href="#builtins-getAttr"><code>getAttr <var>s</var> <var>set</var></code></a>
+</dt>
+<dd>
+<p><code>getAttr</code> returns the attribute named <em>s</em> from <em>set</em>. Evaluation
+aborts if the attribute doesn’t exist. This is a dynamic version of
+the <code>.</code> operator, since <em>s</em> is an expression rather than an
+identifier.</p>
+</dd>
+<dt id="builtins-getContext">
+  <a href="#builtins-getContext"><code>getContext <var>s</var></code></a>
+</dt>
+<dd>
+<p>Return the string context of <em>s</em>.</p>
+<p>The string context tracks references to derivations within a string.
+It is represented as an attribute set of <a href='/manual/nix/2.28/glossary#gloss-store-derivation'>store derivation</a> paths mapping to output names.</p>
+<p>Using <a href='/manual/nix/2.28/language/string-interpolation'>string interpolation</a> on a derivation will add that derivation to the string context.
+For example,</p>
+<pre><code class="language-nix">builtins.getContext "${derivation { name = "a"; builder = "b"; system = "c"; }}"
+</code></pre>
+<p>evaluates to</p>
+<pre><code>{ "/nix/store/arhvjaf6zmlyn8vh8fgn55rpwnxq0n7l-a.drv" = { outputs = [ "out" ]; }; }
+</code></pre>
+</dd>
+<dt id="builtins-getEnv">
+  <a href="#builtins-getEnv"><code>getEnv <var>s</var></code></a>
+</dt>
+<dd>
+<p><code>getEnv</code> returns the value of the environment variable <em>s</em>, or an
+empty string if the variable doesn’t exist. This function should be
+used with care, as it can introduce all sorts of nasty environment
+dependencies in your Nix expression.</p>
+<p><code>getEnv</code> is used in Nix Packages to locate the file
+<code>~/.nixpkgs/config.nix</code>, which contains user-local settings for Nix
+Packages. (That is, it does a <code>getEnv "HOME"</code> to locate the user’s
+home directory.)</p>
+</dd>
+<dt id="builtins-getFlake">
+  <a href="#builtins-getFlake"><code>getFlake <var>args</var></code></a>
+</dt>
+<dd>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>This function is only available if the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-flakes'><code>flakes</code> experimental feature</a> is enabled.</p>
+<p>For example, include the following in <a href='/manual/nix/2.28/command-ref/conf-file'><code>nix.conf</code></a>:</p>
+<pre><code>extra-experimental-features = flakes
+</code></pre>
+</blockquote>
+<p>Fetch a flake from a flake reference, and return its output attributes and some metadata. For example:</p>
+<pre><code class="language-nix">(builtins.getFlake "nix/55bc52401966fbffa525c574c14f67b00bc4fb3a").packages.x86_64-linux.nix
+</code></pre>
+<p>Unless impure evaluation is allowed (<code>--impure</code>), the flake reference
+must be "locked", e.g. contain a Git revision or content hash. An
+example of an unlocked usage is:</p>
+<pre><code class="language-nix">(builtins.getFlake "github:edolstra/dwarffs").rev
+</code></pre>
+</dd>
+<dt id="builtins-groupBy">
+  <a href="#builtins-groupBy"><code>groupBy <var>f</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Groups elements of <em>list</em> together by the string returned from the
+function <em>f</em> called on each element. It returns an attribute set
+where each attribute value contains the elements of <em>list</em> that are
+mapped to the same corresponding attribute name returned by <em>f</em>.</p>
+<p>For example,</p>
+<pre><code class="language-nix">builtins.groupBy (builtins.substring 0 1) ["foo" "bar" "baz"]
+</code></pre>
+<p>evaluates to</p>
+<pre><code class="language-nix">{ b = [ "bar" "baz" ]; f = [ "foo" ]; }
+</code></pre>
+</dd>
+<dt id="builtins-hasAttr">
+  <a href="#builtins-hasAttr"><code>hasAttr <var>s</var> <var>set</var></code></a>
+</dt>
+<dd>
+<p><code>hasAttr</code> returns <code>true</code> if <em>set</em> has an attribute named <em>s</em>, and
+<code>false</code> otherwise. This is a dynamic version of the <code>?</code> operator,
+since <em>s</em> is an expression rather than an identifier.</p>
+</dd>
+<dt id="builtins-hasContext">
+  <a href="#builtins-hasContext"><code>hasContext <var>s</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if string <em>s</em> has a non-empty context.
+The context can be obtained with
+<a href="#builtins-getContext"><code>getContext</code></a>.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>Many operations require a string context to be empty because they are intended only to work with "regular" strings, and also to help users avoid unintentionally loosing track of string context elements.
+<code>builtins.hasContext</code> can help create better domain-specific errors in those case.</p>
+<pre><code class="language-nix">name: meta:
+
+if builtins.hasContext name
+then throw "package name cannot contain string context"
+else { ${name} = meta; }
+</code></pre>
+</blockquote>
+</dd>
+<dt id="builtins-hashFile">
+  <a href="#builtins-hashFile"><code>hashFile <var>type</var> <var>p</var></code></a>
+</dt>
+<dd>
+<p>Return a base-16 representation of the cryptographic hash of the
+file at path <em>p</em>. The hash algorithm specified by <em>type</em> must be one
+of <code>"md5"</code>, <code>"sha1"</code>, <code>"sha256"</code> or <code>"sha512"</code>.</p>
+</dd>
+<dt id="builtins-hashString">
+  <a href="#builtins-hashString"><code>hashString <var>type</var> <var>s</var></code></a>
+</dt>
+<dd>
+<p>Return a base-16 representation of the cryptographic hash of string
+<em>s</em>. The hash algorithm specified by <em>type</em> must be one of <code>"md5"</code>,
+<code>"sha1"</code>, <code>"sha256"</code> or <code>"sha512"</code>.</p>
+</dd>
+<dt id="builtins-head">
+  <a href="#builtins-head"><code>head <var>list</var></code></a>
+</dt>
+<dd>
+<p>Return the first element of a list; abort evaluation if the argument
+isn’t a list or is an empty list. You can test whether a list is
+empty by comparing it with <code>[]</code>.</p>
+</dd>
+<dt id="builtins-import">
+  <a href="#builtins-import"><code>import <var>path</var></code></a>
+</dt>
+<dd>
+<p>Load, parse, and return the Nix expression in the file <em>path</em>.</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Unlike some languages, <code>import</code> is a regular function in Nix.</p>
+</blockquote>
+<p>The <em>path</em> argument must meet the same criteria as an <a href='/manual/nix/2.28/language/string-interpolation#interpolated-expression'>interpolated expression</a>.</p>
+<p>If <em>path</em> is a directory, the file <code>default.nix</code> in that directory is used if it exists.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<pre><code class="language-console">$ echo 123 &gt; default.nix
+</code></pre>
+<p>Import <code>default.nix</code> from the current directory.</p>
+<pre><code class="language-nix">import ./.
+</code></pre>
+<pre><code>123
+</code></pre>
+</blockquote>
+<p>Evaluation aborts if the file doesn’t exist or contains an invalid Nix expression.</p>
+<p>A Nix expression loaded by <code>import</code> must not contain any <em>free variables</em>, that is, identifiers that are not defined in the Nix expression itself and are not built-in.
+Therefore, it cannot refer to variables that are in scope at the call site.</p>
+<blockquote>
+<p><strong>Example</strong></p>
+<p>If you have a calling expression</p>
+<pre><code class="language-nix">rec {
+  x = 123;
+  y = import ./foo.nix;
+}
+</code></pre>
+<p>then the following <code>foo.nix</code> will give an error:</p>
+<pre><code class="language-nix"># foo.nix
+x + 456
+</code></pre>
+<p>since <code>x</code> is not in scope in <code>foo.nix</code>.
+If you want <code>x</code> to be available in <code>foo.nix</code>, pass it as a function argument:</p>
+<pre><code class="language-nix">rec {
+  x = 123;
+  y = import ./foo.nix x;
+}
+</code></pre>
+<p>and</p>
+<pre><code class="language-nix"># foo.nix
+x: x + 456
+</code></pre>
+<p>The function argument doesn’t have to be called <code>x</code> in <code>foo.nix</code>; any name would work.</p>
+</blockquote>
+</dd>
+<dt id="builtins-intersectAttrs">
+  <a href="#builtins-intersectAttrs"><code>intersectAttrs <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return a set consisting of the attributes in the set <em>e2</em> which have the
+same name as some attribute in <em>e1</em>.</p>
+<p>Performs in O(<em>n</em> log <em>m</em>) where <em>n</em> is the size of the smaller set and <em>m</em> the larger set's size.</p>
+</dd>
+<dt id="builtins-isAttrs">
+  <a href="#builtins-isAttrs"><code>isAttrs <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to a set, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-isBool">
+  <a href="#builtins-isBool"><code>isBool <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to a bool, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-isFloat">
+  <a href="#builtins-isFloat"><code>isFloat <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to a float, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-isFunction">
+  <a href="#builtins-isFunction"><code>isFunction <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to a function, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-isInt">
+  <a href="#builtins-isInt"><code>isInt <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to an integer, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-isList">
+  <a href="#builtins-isList"><code>isList <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to a list, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-isNull">
+  <a href="#builtins-isNull"><code>isNull <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to <code>null</code>, and <code>false</code> otherwise.</p>
+<p>This is equivalent to <code>e == null</code>.</p>
+</dd>
+<dt id="builtins-isPath">
+  <a href="#builtins-isPath"><code>isPath <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to a path, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-isString">
+  <a href="#builtins-isString"><code>isString <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if <em>e</em> evaluates to a string, and <code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-langVersion">
+  <a href="#builtins-langVersion"><code>langVersion</code></a> (integer)
+</dt>
+<dd>
+<p>The current version of the Nix language.</p>
+</dd>
+<dt id="builtins-length">
+  <a href="#builtins-length"><code>length <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return the length of the list <em>e</em>.</p>
+</dd>
+<dt id="builtins-lessThan">
+  <a href="#builtins-lessThan"><code>lessThan <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if the number <em>e1</em> is less than the number <em>e2</em>, and
+<code>false</code> otherwise. Evaluation aborts if either <em>e1</em> or <em>e2</em> does not
+evaluate to a number.</p>
+</dd>
+<dt id="builtins-listToAttrs">
+  <a href="#builtins-listToAttrs"><code>listToAttrs <var>e</var></code></a>
+</dt>
+<dd>
+<p>Construct a set from a list specifying the names and values of each
+attribute. Each element of the list should be a set consisting of a
+string-valued attribute <code>name</code> specifying the name of the attribute,
+and an attribute <code>value</code> specifying its value.</p>
+<p>In case of duplicate occurrences of the same name, the first
+takes precedence.</p>
+<p>Example:</p>
+<pre><code class="language-nix">builtins.listToAttrs
+  [ { name = "foo"; value = 123; }
+    { name = "bar"; value = 456; }
+    { name = "bar"; value = 420; }
+  ]
+</code></pre>
+<p>evaluates to</p>
+<pre><code class="language-nix">{ foo = 123; bar = 456; }
+</code></pre>
+</dd>
+<dt id="builtins-map">
+  <a href="#builtins-map"><code>map <var>f</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Apply the function <em>f</em> to each element in the list <em>list</em>. For
+example,</p>
+<pre><code class="language-nix">map (x: "foo" + x) [ "bar" "bla" "abc" ]
+</code></pre>
+<p>evaluates to <code>[ "foobar" "foobla" "fooabc" ]</code>.</p>
+</dd>
+<dt id="builtins-mapAttrs">
+  <a href="#builtins-mapAttrs"><code>mapAttrs <var>f</var> <var>attrset</var></code></a>
+</dt>
+<dd>
+<p>Apply function <em>f</em> to every element of <em>attrset</em>. For example,</p>
+<pre><code class="language-nix">builtins.mapAttrs (name: value: value * 10) { a = 1; b = 2; }
+</code></pre>
+<p>evaluates to <code>{ a = 10; b = 20; }</code>.</p>
+</dd>
+<dt id="builtins-match">
+  <a href="#builtins-match"><code>match <var>regex</var> <var>str</var></code></a>
+</dt>
+<dd>
+<p>Returns a list if the <a href="http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_04">extended POSIX regular
+expression</a>
+<em>regex</em> matches <em>str</em> precisely, otherwise returns <code>null</code>. Each item
+in the list is a regex group.</p>
+<pre><code class="language-nix">builtins.match "ab" "abc"
+</code></pre>
+<p>Evaluates to <code>null</code>.</p>
+<pre><code class="language-nix">builtins.match "abc" "abc"
+</code></pre>
+<p>Evaluates to <code>[ ]</code>.</p>
+<pre><code class="language-nix">builtins.match "a(b)(c)" "abc"
+</code></pre>
+<p>Evaluates to <code>[ "b" "c" ]</code>.</p>
+<pre><code class="language-nix">builtins.match "[[:space:]]+([[:upper:]]+)[[:space:]]+" "  FOO   "
+</code></pre>
+<p>Evaluates to <code>[ "FOO" ]</code>.</p>
+</dd>
+<dt id="builtins-mul">
+  <a href="#builtins-mul"><code>mul <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return the product of the numbers <em>e1</em> and <em>e2</em>.</p>
+</dd>
+<dt id="builtins-nixPath">
+  <a href="#builtins-nixPath"><code>nixPath</code></a> (list)
+</dt>
+<dd>
+<p>A list of search path entries used to resolve <a href='/manual/nix/2.28/language/constructs/lookup-path'>lookup paths</a>.
+Its value is primarily determined by the <a href='/manual/nix/2.28/command-ref/conf-file#conf-nix-path'><code>nix-path</code> configuration setting</a>, which are</p>
+<ul>
+<li>Overridden by the <a href='/manual/nix/2.28/command-ref/env-common#env-NIX_PATH'><code>NIX_PATH</code></a> environment variable or the <code>--nix-path</code> option</li>
+<li>Extended by the <a href='/manual/nix/2.28/command-ref/opt-common#opt-I'><code>-I</code> option</a> or <code>--extra-nix-path</code></li>
+</ul>
+<blockquote>
+<p><strong>Example</strong></p>
+<pre><code class="language-bash">$ NIX_PATH= nix-instantiate --eval --expr "builtins.nixPath" -I foo=bar --no-pure-eval
+[ { path = "bar"; prefix = "foo"; } ]
+</code></pre>
+</blockquote>
+<p>Lookup path expressions are <a href="https://en.wikipedia.org/wiki/Syntactic_sugar">desugared</a> using this and
+<a href='/manual/nix/2.28/language/builtins#builtins-findFile'><code>builtins.findFile</code></a>:</p>
+<pre><code class="language-nix">&lt;nixpkgs&gt;
+</code></pre>
+<p>is equivalent to:</p>
+<pre><code class="language-nix">builtins.findFile builtins.nixPath "nixpkgs"
+</code></pre>
+</dd>
+<dt id="builtins-nixVersion">
+  <a href="#builtins-nixVersion"><code>nixVersion</code></a> (string)
+</dt>
+<dd>
+<p>The version of Nix.</p>
+<p>For example, where the command line returns the current Nix version,</p>
+<pre><code class="language-shell-session">$ nix --version
+nix (Nix) 2.16.0
+</code></pre>
+<p>the Nix language evaluator returns the same value:</p>
+<pre><code class="language-nix-repl">nix-repl&gt; builtins.nixVersion
+"2.16.0"
+</code></pre>
+</dd>
+<dt id="builtins-null">
+  <a href="#builtins-null"><code>null</code></a> (null)
+</dt>
+<dd>
+<p>Primitive value.</p>
+<p>The name <code>null</code> is not special, and can be shadowed:</p>
+<pre><code class="language-nix-repl">nix-repl&gt; let null = 1; in null
+1
+</code></pre>
+</dd>
+<dt id="builtins-outputOf">
+  <a href="#builtins-outputOf"><code>outputOf <var>derivation-reference</var> <var>output-name</var></code></a>
+</dt>
+<dd>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>This function is only available if the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-dynamic-derivations'><code>dynamic-derivations</code> experimental feature</a> is enabled.</p>
+<p>For example, include the following in <a href='/manual/nix/2.28/command-ref/conf-file'><code>nix.conf</code></a>:</p>
+<pre><code>extra-experimental-features = dynamic-derivations
+</code></pre>
+</blockquote>
+<p>Return the output path of a derivation, literally or using an
+<a href='/manual/nix/2.28/store/derivation/#input-placeholder'>input placeholder string</a>
+if needed.</p>
+<p>If the derivation has a statically-known output path (i.e. the derivation output is input-addressed, or fixed content-addresed), the output path will just be returned.
+But if the derivation is content-addressed or if the derivation is itself not-statically produced (i.e. is the output of another derivation), an input placeholder will be returned instead.</p>
+<p><em><code>derivation reference</code></em> must be a string that may contain a regular store path to a derivation, or may be an input placeholder reference.
+If the derivation is produced by a derivation, you must explicitly select <code>drv.outPath</code>.
+This primop can be chained arbitrarily deeply.
+For instance,</p>
+<pre><code class="language-nix">builtins.outputOf
+  (builtins.outputOf myDrv "out")
+  "out"
+</code></pre>
+<p>will return a input placeholder for the output of the output of <code>myDrv</code>.</p>
+<p>This primop corresponds to the <code>^</code> sigil for <a href='/manual/nix/2.28/glossary#gloss-deriving-paths'>deriving paths</a>, e.g. as part of installable syntax on the command line.</p>
+</dd>
+<dt id="builtins-parseDrvName">
+  <a href="#builtins-parseDrvName"><code>parseDrvName <var>s</var></code></a>
+</dt>
+<dd>
+<p>Split the string <em>s</em> into a package name and version. The package
+name is everything up to but not including the first dash not followed
+by a letter, and the version is everything following that dash. The
+result is returned in a set <code>{ name, version }</code>. Thus,
+<code>builtins.parseDrvName "nix-0.12pre12876"</code> returns <code>{ name = "nix"; version = "0.12pre12876"; }</code>.</p>
+</dd>
+<dt id="builtins-parseFlakeRef">
+  <a href="#builtins-parseFlakeRef"><code>parseFlakeRef <var>flake-ref</var></code></a>
+</dt>
+<dd>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>This function is only available if the <a href='/manual/nix/2.28/development/experimental-features#xp-feature-flakes'><code>flakes</code> experimental feature</a> is enabled.</p>
+<p>For example, include the following in <a href='/manual/nix/2.28/command-ref/conf-file'><code>nix.conf</code></a>:</p>
+<pre><code>extra-experimental-features = flakes
+</code></pre>
+</blockquote>
+<p>Parse a flake reference, and return its exploded form.</p>
+<p>For example:</p>
+<pre><code class="language-nix">builtins.parseFlakeRef "github:NixOS/nixpkgs/23.05?dir=lib"
+</code></pre>
+<p>evaluates to:</p>
+<pre><code class="language-nix">{ dir = "lib"; owner = "NixOS"; ref = "23.05"; repo = "nixpkgs"; type = "github"; }
+</code></pre>
+</dd>
+<dt id="builtins-partition">
+  <a href="#builtins-partition"><code>partition <var>pred</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Given a predicate function <em>pred</em>, this function returns an
+attrset containing a list named <code>right</code>, containing the elements
+in <em>list</em> for which <em>pred</em> returned <code>true</code>, and a list named
+<code>wrong</code>, containing the elements for which it returned
+<code>false</code>. For example,</p>
+<pre><code class="language-nix">builtins.partition (x: x &gt; 10) [1 23 9 3 42]
+</code></pre>
+<p>evaluates to</p>
+<pre><code class="language-nix">{ right = [ 23 42 ]; wrong = [ 1 9 3 ]; }
+</code></pre>
+</dd>
+<dt id="builtins-path">
+  <a href="#builtins-path"><code>path <var>args</var></code></a>
+</dt>
+<dd>
+<p>An enrichment of the built-in path type, based on the attributes
+present in <em>args</em>. All are optional except <code>path</code>:</p>
+<ul>
+<li>
+<p>path<br />
+The underlying path.</p>
+</li>
+<li>
+<p>name<br />
+The name of the path when added to the store. This can used to
+reference paths that have nix-illegal characters in their names,
+like <code>@</code>.</p>
+</li>
+<li>
+<p>filter<br />
+A function of the type expected by <a href="#builtins-filterSource"><code>builtins.filterSource</code></a>,
+with the same semantics.</p>
+</li>
+<li>
+<p>recursive<br />
+When <code>false</code>, when <code>path</code> is added to the store it is with a
+flat hash, rather than a hash of the NAR serialization of the
+file. Thus, <code>path</code> must refer to a regular file, not a
+directory. This allows similar behavior to <code>fetchurl</code>. Defaults
+to <code>true</code>.</p>
+</li>
+<li>
+<p>sha256<br />
+When provided, this is the expected hash of the file at the
+path. Evaluation will fail if the hash is incorrect, and
+providing a hash allows <code>builtins.path</code> to be used even when the
+<code>pure-eval</code> nix config option is on.</p>
+</li>
+</ul>
+</dd>
+<dt id="builtins-pathExists">
+  <a href="#builtins-pathExists"><code>pathExists <var>path</var></code></a>
+</dt>
+<dd>
+<p>Return <code>true</code> if the path <em>path</em> exists at evaluation time, and
+<code>false</code> otherwise.</p>
+</dd>
+<dt id="builtins-placeholder">
+  <a href="#builtins-placeholder"><code>placeholder <var>output</var></code></a>
+</dt>
+<dd>
+<p>Return at
+<a href='/manual/nix/2.28/store/derivation/#output-placeholder'>output placeholder string</a>
+for the specified <em>output</em> that will be substituted by the corresponding
+<a href='/manual/nix/2.28/glossary#gloss-output-path'>output path</a>
+at build time.</p>
+<p>Typical outputs would be <code>"out"</code>, <code>"bin"</code> or <code>"dev"</code>.</p>
+</dd>
+<dt id="builtins-readDir">
+  <a href="#builtins-readDir"><code>readDir <var>path</var></code></a>
+</dt>
+<dd>
+<p>Return the contents of the directory <em>path</em> as a set mapping
+directory entries to the corresponding file type. For instance, if
+directory <code>A</code> contains a regular file <code>B</code> and another directory
+<code>C</code>, then <code>builtins.readDir ./A</code> will return the set</p>
+<pre><code class="language-nix">{ B = "regular"; C = "directory"; }
+</code></pre>
+<p>The possible values for the file type are <code>"regular"</code>,
+<code>"directory"</code>, <code>"symlink"</code> and <code>"unknown"</code>.</p>
+</dd>
+<dt id="builtins-readFile">
+  <a href="#builtins-readFile"><code>readFile <var>path</var></code></a>
+</dt>
+<dd>
+<p>Return the contents of the file <em>path</em> as a string.</p>
+</dd>
+<dt id="builtins-readFileType">
+  <a href="#builtins-readFileType"><code>readFileType <var>p</var></code></a>
+</dt>
+<dd>
+<p>Determine the directory entry type of a filesystem node, being
+one of <code>"directory"</code>, <code>"regular"</code>, <code>"symlink"</code>, or <code>"unknown"</code>.</p>
+</dd>
+<dt id="builtins-removeAttrs">
+  <a href="#builtins-removeAttrs"><code>removeAttrs <var>set</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Remove the attributes listed in <em>list</em> from <em>set</em>. The attributes
+don’t have to exist in <em>set</em>. For instance,</p>
+<pre><code class="language-nix">removeAttrs { x = 1; y = 2; z = 3; } [ "a" "x" "z" ]
+</code></pre>
+<p>evaluates to <code>{ y = 2; }</code>.</p>
+</dd>
+<dt id="builtins-replaceStrings">
+  <a href="#builtins-replaceStrings"><code>replaceStrings <var>from</var> <var>to</var> <var>s</var></code></a>
+</dt>
+<dd>
+<p>Given string <em>s</em>, replace every occurrence of the strings in <em>from</em>
+with the corresponding string in <em>to</em>.</p>
+<p>The argument <em>to</em> is lazy, that is, it is only evaluated when its corresponding pattern in <em>from</em> is matched in the string <em>s</em></p>
+<p>Example:</p>
+<pre><code class="language-nix">builtins.replaceStrings ["oo" "a"] ["a" "i"] "foobar"
+</code></pre>
+<p>evaluates to <code>"fabir"</code>.</p>
+</dd>
+<dt id="builtins-seq">
+  <a href="#builtins-seq"><code>seq <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Evaluate <em>e1</em>, then evaluate and return <em>e2</em>. This ensures that a
+computation is strict in the value of <em>e1</em>.</p>
+</dd>
+<dt id="builtins-sort">
+  <a href="#builtins-sort"><code>sort <var>comparator</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Return <em>list</em> in sorted order. It repeatedly calls the function
+<em>comparator</em> with two elements. The comparator should return <code>true</code>
+if the first element is less than the second, and <code>false</code> otherwise.
+For example,</p>
+<pre><code class="language-nix">builtins.sort builtins.lessThan [ 483 249 526 147 42 77 ]
+</code></pre>
+<p>produces the list <code>[ 42 77 147 249 483 526 ]</code>.</p>
+<p>This is a stable sort: it preserves the relative order of elements
+deemed equal by the comparator.</p>
+</dd>
+<dt id="builtins-split">
+  <a href="#builtins-split"><code>split <var>regex</var> <var>str</var></code></a>
+</dt>
+<dd>
+<p>Returns a list composed of non matched strings interleaved with the
+lists of the <a href="http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_04">extended POSIX regular
+expression</a>
+<em>regex</em> matches of <em>str</em>. Each item in the lists of matched
+sequences is a regex group.</p>
+<pre><code class="language-nix">builtins.split "(a)b" "abc"
+</code></pre>
+<p>Evaluates to <code>[ "" [ "a" ] "c" ]</code>.</p>
+<pre><code class="language-nix">builtins.split "([ac])" "abc"
+</code></pre>
+<p>Evaluates to <code>[ "" [ "a" ] "b" [ "c" ] "" ]</code>.</p>
+<pre><code class="language-nix">builtins.split "(a)|(c)" "abc"
+</code></pre>
+<p>Evaluates to <code>[ "" [ "a" null ] "b" [ null "c" ] "" ]</code>.</p>
+<pre><code class="language-nix">builtins.split "([[:upper:]]+)" " FOO "
+</code></pre>
+<p>Evaluates to <code>[ " " [ "FOO" ] " " ]</code>.</p>
+</dd>
+<dt id="builtins-splitVersion">
+  <a href="#builtins-splitVersion"><code>splitVersion <var>s</var></code></a>
+</dt>
+<dd>
+<p>Split a string representing a version into its components, by the
+same version splitting logic underlying the version comparison in
+<a href='/manual/nix/2.28/command-ref/nix-env#operation---upgrade'><code>nix-env -u</code></a>.</p>
+</dd>
+<dt id="builtins-storeDir">
+  <a href="#builtins-storeDir"><code>storeDir</code></a> (string)
+</dt>
+<dd>
+<p>Logical file system location of the <a href='/manual/nix/2.28/glossary#gloss-store'>Nix store</a> currently in use.</p>
+<p>This value is determined by the <code>store</code> parameter in <a href='/manual/nix/2.28/store/types/#store-url-format'>Store URLs</a>:</p>
+<pre><code class="language-shell-session">$ nix-instantiate --store 'dummy://?store=/blah' --eval --expr builtins.storeDir
+"/blah"
+</code></pre>
+</dd>
+<dt id="builtins-storePath">
+  <a href="#builtins-storePath"><code>storePath <var>path</var></code></a>
+</dt>
+<dd>
+<p>This function allows you to define a dependency on an already
+existing store path. For example, the derivation attribute <code>src = builtins.storePath /nix/store/f1d18v1y…-source</code> causes the
+derivation to depend on the specified path, which must exist or
+be substitutable. Note that this differs from a plain path
+(e.g. <code>src = /nix/store/f1d18v1y…-source</code>) in that the latter
+causes the path to be <em>copied</em> again to the Nix store, resulting
+in a new path (e.g. <code>/nix/store/ld01dnzc…-source-source</code>).</p>
+<p>Not available in <a href='/manual/nix/2.28/command-ref/conf-file#conf-pure-eval'>pure evaluation mode</a>.</p>
+<p>See also <a href="#builtins-fetchClosure"><code>builtins.fetchClosure</code></a>.</p>
+</dd>
+<dt id="builtins-stringLength">
+  <a href="#builtins-stringLength"><code>stringLength <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return the number of bytes of the string <em>e</em>. If <em>e</em> is not a string,
+evaluation is aborted.</p>
+</dd>
+<dt id="builtins-sub">
+  <a href="#builtins-sub"><code>sub <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Return the difference between the numbers <em>e1</em> and <em>e2</em>.</p>
+</dd>
+<dt id="builtins-substring">
+  <a href="#builtins-substring"><code>substring <var>start</var> <var>len</var> <var>s</var></code></a>
+</dt>
+<dd>
+<p>Return the substring of <em>s</em> from byte position <em>start</em>
+(zero-based) up to but not including <em>start + len</em>. If <em>start</em> is
+greater than the length of the string, an empty string is returned.
+If <em>start + len</em> lies beyond the end of the string or <em>len</em> is <code>-1</code>,
+only the substring up to the end of the string is returned.
+<em>start</em> must be non-negative.
+For example,</p>
+<pre><code class="language-nix">builtins.substring 0 3 "nixos"
+</code></pre>
+<p>evaluates to <code>"nix"</code>.</p>
+</dd>
+<dt id="builtins-tail">
+  <a href="#builtins-tail"><code>tail <var>list</var></code></a>
+</dt>
+<dd>
+<p>Return the list without its first item; abort evaluation if
+the argument isn’t a list or is an empty list.</p>
+<blockquote>
+<p><strong>Warning</strong></p>
+<p>This function should generally be avoided since it's inefficient:
+unlike Haskell's <code>tail</code>, it takes O(n) time, so recursing over a
+list by repeatedly calling <code>tail</code> takes O(n^2) time.</p>
+</blockquote>
+</dd>
+<dt id="builtins-throw">
+  <a href="#builtins-throw"><code>throw <var>s</var></code></a>
+</dt>
+<dd>
+<p>Throw an error message <em>s</em>. This usually aborts Nix expression
+evaluation, but in <code>nix-env -qa</code> and other commands that try to
+evaluate a set of derivations to get information about those
+derivations, a derivation that throws an error is silently skipped
+(which is not the case for <code>abort</code>).</p>
+</dd>
+<dt id="builtins-toFile">
+  <a href="#builtins-toFile"><code>toFile <var>name</var> <var>s</var></code></a>
+</dt>
+<dd>
+<p>Store the string <em>s</em> in a file in the Nix store and return its
+path.  The file has suffix <em>name</em>. This file can be used as an
+input to derivations. One application is to write builders
+“inline”. For instance, the following Nix expression combines the
+Nix expression for GNU Hello and its build script into one file:</p>
+<pre><code class="language-nix">{ stdenv, fetchurl, perl }:
+
+stdenv.mkDerivation {
+  name = "hello-2.1.1";
+
+  builder = builtins.toFile "builder.sh" "
+    source $stdenv/setup
+
+    PATH=$perl/bin:$PATH
+
+    tar xvfz $src
+    cd hello-*
+    ./configure --prefix=$out
+    make
+    make install
+  ";
+
+  src = fetchurl {
+    url = "http://ftp.nluug.nl/pub/gnu/hello/hello-2.1.1.tar.gz";
+    sha256 = "1md7jsfd8pa45z73bz1kszpp01yw6x5ljkjk2hx7wl800any6465";
+  };
+  inherit perl;
+}
+</code></pre>
+<p>It is even possible for one file to refer to another, e.g.,</p>
+<pre><code class="language-nix">builder = let
+  configFile = builtins.toFile "foo.conf" "
+    # This is some dummy configuration file.
+    ...
+  ";
+in builtins.toFile "builder.sh" "
+  source $stdenv/setup
+  ...
+  cp ${configFile} $out/etc/foo.conf
+";
+</code></pre>
+<p>Note that <code>${configFile}</code> is a
+<a href='/manual/nix/2.28/language/types#type-string'>string interpolation</a>, so the result of the
+expression <code>configFile</code>
+(i.e., a path like <code>/nix/store/m7p7jfny445k...-foo.conf</code>) will be
+spliced into the resulting string.</p>
+<p>It is however <em>not</em> allowed to have files mutually referring to each
+other, like so:</p>
+<pre><code class="language-nix">let
+  foo = builtins.toFile "foo" "...${bar}...";
+  bar = builtins.toFile "bar" "...${foo}...";
+in foo
+</code></pre>
+<p>This is not allowed because it would cause a cyclic dependency in
+the computation of the cryptographic hashes for <code>foo</code> and <code>bar</code>.</p>
+<p>It is also not possible to reference the result of a derivation. If
+you are using Nixpkgs, the <code>writeTextFile</code> function is able to do
+that.</p>
+</dd>
+<dt id="builtins-toJSON">
+  <a href="#builtins-toJSON"><code>toJSON <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return a string containing a JSON representation of <em>e</em>. Strings,
+integers, floats, booleans, nulls and lists are mapped to their JSON
+equivalents. Sets (except derivations) are represented as objects.
+Derivations are translated to a JSON string containing the
+derivation’s output path. Paths are copied to the store and
+represented as a JSON string of the resulting store path.</p>
+</dd>
+<dt id="builtins-toPath">
+  <a href="#builtins-toPath"><code>toPath <var>s</var></code></a>
+</dt>
+<dd>
+<p><strong>DEPRECATED.</strong> Use <code>/. + "/path"</code> to convert a string into an absolute
+path. For relative paths, use <code>./. + "/path"</code>.</p>
+</dd>
+<dt id="builtins-toString">
+  <a href="#builtins-toString"><code>toString <var>e</var></code></a>
+</dt>
+<dd>
+<p>Convert the expression <em>e</em> to a string. <em>e</em> can be:</p>
+<ul>
+<li>
+<p>A string (in which case the string is returned unmodified).</p>
+</li>
+<li>
+<p>A path (e.g., <code>toString /foo/bar</code> yields <code>"/foo/bar"</code>.</p>
+</li>
+<li>
+<p>A set containing <code>{ __toString = self: ...; }</code> or <code>{ outPath = ...; }</code>.</p>
+</li>
+<li>
+<p>An integer.</p>
+</li>
+<li>
+<p>A list, in which case the string representations of its elements
+are joined with spaces.</p>
+</li>
+<li>
+<p>A Boolean (<code>false</code> yields <code>""</code>, <code>true</code> yields <code>"1"</code>).</p>
+</li>
+<li>
+<p><code>null</code>, which yields the empty string.</p>
+</li>
+</ul>
+</dd>
+<dt id="builtins-toXML">
+  <a href="#builtins-toXML"><code>toXML <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return a string containing an XML representation of <em>e</em>. The main
+application for <code>toXML</code> is to communicate information with the
+builder in a more structured format than plain environment
+variables.</p>
+<p>Here is an example where this is the case:</p>
+<pre><code class="language-nix">{ stdenv, fetchurl, libxslt, jira, uberwiki }:
+
+stdenv.mkDerivation (rec {
+  name = "web-server";
+
+  buildInputs = [ libxslt ];
+
+  builder = builtins.toFile "builder.sh" "
+    source $stdenv/setup
+    mkdir $out
+    echo "$servlets" | xsltproc ${stylesheet} - &gt; $out/server-conf.xml ①
+  ";
+
+  stylesheet = builtins.toFile "stylesheet.xsl" ②
+   "&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+    &lt;xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform' version='1.0'&gt;
+      &lt;xsl:template match='/'&gt;
+        &lt;Configure&gt;
+          &lt;xsl:for-each select='/expr/list/attrs'&gt;
+            &lt;Call name='addWebApplication'&gt;
+              &lt;Arg&gt;&lt;xsl:value-of select=\"attr[@name = 'path']/string/@value\" /&gt;&lt;/Arg&gt;
+              &lt;Arg&gt;&lt;xsl:value-of select=\"attr[@name = 'war']/path/@value\" /&gt;&lt;/Arg&gt;
+            &lt;/Call&gt;
+          &lt;/xsl:for-each&gt;
+        &lt;/Configure&gt;
+      &lt;/xsl:template&gt;
+    &lt;/xsl:stylesheet&gt;
+  ";
+
+  servlets = builtins.toXML [ ③
+    { path = "/bugtracker"; war = jira + "/lib/atlassian-jira.war"; }
+    { path = "/wiki"; war = uberwiki + "/uberwiki.war"; }
+  ];
+})
+</code></pre>
+<p>The builder is supposed to generate the configuration file for a
+<a href="http://jetty.mortbay.org/">Jetty servlet container</a>. A servlet
+container contains a number of servlets (<code>*.war</code> files) each
+exported under a specific URI prefix. So the servlet configuration
+is a list of sets containing the <code>path</code> and <code>war</code> of the servlet
+(①). This kind of information is difficult to communicate with the
+normal method of passing information through an environment
+variable, which just concatenates everything together into a
+string (which might just work in this case, but wouldn’t work if
+fields are optional or contain lists themselves). Instead the Nix
+expression is converted to an XML representation with <code>toXML</code>,
+which is unambiguous and can easily be processed with the
+appropriate tools. For instance, in the example an XSLT stylesheet
+(at point ②) is applied to it (at point ①) to generate the XML
+configuration file for the Jetty server. The XML representation
+produced at point ③ by <code>toXML</code> is as follows:</p>
+<pre><code class="language-xml">&lt;?xml version='1.0' encoding='utf-8'?&gt;
+&lt;expr&gt;
+  &lt;list&gt;
+    &lt;attrs&gt;
+      &lt;attr name="path"&gt;
+        &lt;string value="/bugtracker" /&gt;
+      &lt;/attr&gt;
+      &lt;attr name="war"&gt;
+        &lt;path value="/nix/store/d1jh9pasa7k2...-jira/lib/atlassian-jira.war" /&gt;
+      &lt;/attr&gt;
+    &lt;/attrs&gt;
+    &lt;attrs&gt;
+      &lt;attr name="path"&gt;
+        &lt;string value="/wiki" /&gt;
+      &lt;/attr&gt;
+      &lt;attr name="war"&gt;
+        &lt;path value="/nix/store/y6423b1yi4sx...-uberwiki/uberwiki.war" /&gt;
+      &lt;/attr&gt;
+    &lt;/attrs&gt;
+  &lt;/list&gt;
+&lt;/expr&gt;
+</code></pre>
+<p>Note that we used the <code>toFile</code> built-in to write the builder and
+the stylesheet “inline” in the Nix expression. The path of the
+stylesheet is spliced into the builder using the syntax <code>xsltproc ${stylesheet}</code>.</p>
+</dd>
+<dt id="builtins-trace">
+  <a href="#builtins-trace"><code>trace <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Evaluate <em>e1</em> and print its abstract syntax representation on
+standard error. Then return <em>e2</em>. This function is useful for
+debugging.</p>
+<p>If the
+<a href='/manual/nix/2.28/command-ref/conf-file#conf-debugger-on-trace'><code>debugger-on-trace</code></a>
+option is set to <code>true</code> and the <code>--debugger</code> flag is given, the
+interactive debugger will be started when <code>trace</code> is called (like
+<a href='/manual/nix/2.28/language/builtins#builtins-break'><code>break</code></a>).</p>
+</dd>
+<dt id="builtins-traceVerbose">
+  <a href="#builtins-traceVerbose"><code>traceVerbose <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Evaluate <em>e1</em> and print its abstract syntax representation on standard
+error if <code>--trace-verbose</code> is enabled. Then return <em>e2</em>. This function
+is useful for debugging.</p>
+</dd>
+<dt id="builtins-true">
+  <a href="#builtins-true"><code>true</code></a> (Boolean)
+</dt>
+<dd>
+<p>Primitive value.</p>
+<p>It can be returned by
+<a href='/manual/nix/2.28/language/operators#Comparison'>comparison operators</a>
+and used in
+<a href='/manual/nix/2.28/language/syntax#Conditionals'>conditional expressions</a>.</p>
+<p>The name <code>true</code> is not special, and can be shadowed:</p>
+<pre><code class="language-nix-repl">nix-repl&gt; let true = 1; in true
+1
+</code></pre>
+</dd>
+<dt id="builtins-tryEval">
+  <a href="#builtins-tryEval"><code>tryEval <var>e</var></code></a>
+</dt>
+<dd>
+<p>Try to shallowly evaluate <em>e</em>. Return a set containing the
+attributes <code>success</code> (<code>true</code> if <em>e</em> evaluated successfully,
+<code>false</code> if an error was thrown) and <code>value</code>, equalling <em>e</em> if
+successful and <code>false</code> otherwise. <code>tryEval</code> will only prevent
+errors created by <code>throw</code> or <code>assert</code> from being thrown.
+Errors <code>tryEval</code> will not catch are for example those created
+by <code>abort</code> and type errors generated by builtins. Also note that
+this doesn't evaluate <em>e</em> deeply, so <code>let e = { x = throw ""; }; in (builtins.tryEval e).success</code> will be <code>true</code>. Using
+<code>builtins.deepSeq</code> one can get the expected result:
+<code>let e = { x = throw ""; }; in (builtins.tryEval (builtins.deepSeq e e)).success</code> will be
+<code>false</code>.</p>
+<p><code>tryEval</code> intentionally does not return the error message, because that risks bringing non-determinism into the evaluation result, and it would become very difficult to improve error reporting without breaking existing expressions.
+Instead, use <a href='/manual/nix/2.28/language/builtins#builtins-addErrorContext'><code>builtins.addErrorContext</code></a> to add context to the error message, and use a Nix unit testing tool for testing.</p>
+</dd>
+<dt id="builtins-typeOf">
+  <a href="#builtins-typeOf"><code>typeOf <var>e</var></code></a>
+</dt>
+<dd>
+<p>Return a string representing the type of the value <em>e</em>, namely
+<code>"int"</code>, <code>"bool"</code>, <code>"string"</code>, <code>"path"</code>, <code>"null"</code>, <code>"set"</code>,
+<code>"list"</code>, <code>"lambda"</code> or <code>"float"</code>.</p>
+</dd>
+<dt id="builtins-unsafeDiscardOutputDependency">
+  <a href="#builtins-unsafeDiscardOutputDependency"><code>unsafeDiscardOutputDependency <var>s</var></code></a>
+</dt>
+<dd>
+<p>Create a copy of the given string where every
+<a href='/manual/nix/2.28/language/string-context#string-context-element-derivation-deep'>derivation deep</a>
+string context element is turned into a
+<a href='/manual/nix/2.28/language/string-context#string-context-element-constant'>constant</a>
+string context element.</p>
+<p>This is the opposite of <a href="#builtins-addDrvOutputDependencies"><code>builtins.addDrvOutputDependencies</code></a>.</p>
+<p>This is unsafe because it allows us to "forget" store objects we would have otherwise referred to with the string context,
+whereas Nix normally tracks all dependencies consistently.
+Safe operations "grow" but never "shrink" string contexts.
+<a href="#builtins-addDrvOutputDependencies"><code>builtins.addDrvOutputDependencies</code></a> in contrast is safe because "derivation deep" string context element always refers to the underlying derivation (among many more things).
+Replacing a constant string context element with a "derivation deep" element is a safe operation that just enlargens the string context without forgetting anything.</p>
+</dd>
+<dt id="builtins-unsafeDiscardStringContext">
+  <a href="#builtins-unsafeDiscardStringContext"><code>unsafeDiscardStringContext <var>s</var></code></a>
+</dt>
+<dd>
+<p>Discard the <a href='/manual/nix/2.28/language/string-context'>string context</a> from a value that can be coerced to a string.</p>
+</dd>
+<dt id="builtins-warn">
+  <a href="#builtins-warn"><code>warn <var>e1</var> <var>e2</var></code></a>
+</dt>
+<dd>
+<p>Evaluate <em>e1</em>, which must be a string, and print it on standard error as a warning.
+Then return <em>e2</em>.
+This function is useful for non-critical situations where attention is advisable.</p>
+<p>If the
+<a href='/manual/nix/2.28/command-ref/conf-file#conf-debugger-on-trace'><code>debugger-on-trace</code></a>
+or <a href='/manual/nix/2.28/command-ref/conf-file#conf-debugger-on-warn'><code>debugger-on-warn</code></a>
+option is set to <code>true</code> and the <code>--debugger</code> flag is given, the
+interactive debugger will be started when <code>warn</code> is called (like
+<a href='/manual/nix/2.28/language/builtins#builtins-break'><code>break</code></a>).</p>
+<p>If the
+<a href='/manual/nix/2.28/command-ref/conf-file#conf-abort-on-warn'><code>abort-on-warn</code></a>
+option is set, the evaluation will be aborted after the warning is printed.
+This is useful to reveal the stack trace of the warning, when the context is non-interactive and a debugger can not be launched.</p>
+</dd>
+<dt id="builtins-zipAttrsWith">
+  <a href="#builtins-zipAttrsWith"><code>zipAttrsWith <var>f</var> <var>list</var></code></a>
+</dt>
+<dd>
+<p>Transpose a list of attribute sets into an attribute set of lists,
+then apply <code>mapAttrs</code>.</p>
+<p><code>f</code> receives two arguments: the attribute name and a non-empty
+list of all values encountered for that attribute name.</p>
+<p>The result is an attribute set where the attribute names are the
+union of the attribute names in each element of <code>list</code>. The attribute
+values are the return values of <code>f</code>.</p>
+<pre><code class="language-nix">builtins.zipAttrsWith
+  (name: values: { inherit name values; })
+  [ { a = "x"; } { a = "y"; b = "z"; } ]
+</code></pre>
+<p>evaluates to</p>
+<pre><code>{
+  a = { name = "a"; values = [ "x" "y" ]; };
+  b = { name = "b"; values = [ "z" ]; };
+}
+</code></pre>
+</dd>
+</dl>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a aria-keyshortcuts='Left' aria-label='Previous chapter' class='mobile-nav-chapters previous' href='/manual/nix/2.28/language/operators' rel='prev' title='Previous chapter'>
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a aria-keyshortcuts='Right' aria-label='Next chapter' class='mobile-nav-chapters next' href='/manual/nix/2.28/language/derivations' rel='next prefetch' title='Next chapter'>
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a aria-keyshortcuts='Left' aria-label='Previous chapter' class='nav-chapters previous' href='/manual/nix/2.28/language/operators' rel='prev' title='Previous chapter'>
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a aria-keyshortcuts='Right' aria-label='Next chapter' class='nav-chapters next' href='/manual/nix/2.28/language/derivations' rel='next prefetch' title='Next chapter'>
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../redirects.js"></script>
+
+
+    </div>
+    </body>
+</html>

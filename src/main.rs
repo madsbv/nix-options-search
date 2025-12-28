@@ -1,7 +1,7 @@
-use std::sync::OnceLock;
-
 use clap::Parser;
 use color_eyre::eyre::Result;
+use config::AppConfig;
+use std::sync::OnceLock;
 
 mod app;
 mod cli;
@@ -15,7 +15,8 @@ mod parsing;
 mod source;
 mod tui;
 
-use config::AppConfig;
+#[cfg(test)]
+mod test_utils;
 
 fn main() {
     let res = init_and_run();

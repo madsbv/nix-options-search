@@ -51,6 +51,7 @@ strip = true
 
 [profile.dev]
 opt-level = 1
+lto = "thin"
 
 [lints.rust]
 deprecated-safe = {level = "deny", priority = 0}
