@@ -177,23 +177,18 @@ fn new_searcher(
 #[cfg(test)]
 mod tests {
 
-    #[cfg(feature = "online-tests")]
     use super::*;
-    #[cfg(feature = "online-tests")]
-    use crate::config::consts;
+    use crate::test_utils::BUILTIN_SOURCES_WITH_HTML;
 
     /// Check that we can get, parse and query all online data sources with at least some results.
     #[test]
-    #[cfg(feature = "online-tests")]
     fn test_finders() {
         let mut handles = vec![];
-        for s in consts::BUILTIN_SOURCES.iter() {
-            let s = Source {
-                inner: (*s).clone(),
-            };
+        for swh in BUILTIN_SOURCES_WITH_HTML.iter() {
+            let source = swh.source.clone();
             handles.push((
-                s.clone(),
-                std::thread::spawn(move || test_finder(&s, None, None)),
+                source.clone(),
+                std::thread::spawn(move || test_finder_with_data(&source, &swh.data)),
             ));
         }
         for h in handles {
@@ -205,13 +200,10 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "online-tests")]
-    fn test_finder(
-        source: &Source,
-        cache_dir: Option<&'static Path>,
-        cache_duration: Option<Duration>,
-    ) {
-        let mut f = Finder::new(source.clone(), cache_dir, cache_duration);
+    fn test_finder_with_data(source: &Source, data: &SourceData) {
+        let data = data.clone();
+        let data_fn = Box::new(move || Ok(data.clone()));
+        let mut f = Finder::new_with_data_fn(source.clone(), Some(data_fn), None, None);
         assert_ne!(
             f.find_blocking("s", Some(5))
                 .expect("find_blocking should not fail")
@@ -222,15 +214,19 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "online-tests")]
     fn test_empty_search() {
-        let mut f = Finder::new(Source::from(&consts::NIX_DARWIN), None, None);
-        assert_eq!(
+        for swh in BUILTIN_SOURCES_WITH_HTML.iter() {
+            // Nix-Darwin
+            let data = swh.data.clone();
+            let data_fn = Box::new(move || Ok(data.clone()));
+            let mut f = Finder::new_with_data_fn(swh.source.clone(), Some(data_fn), None, None);
+            assert_eq!(
             f.find_blocking("asdfasdfasdf", Some(5))
                 .expect("find blocking should not fail")
                 .len(),
             0,
             "Either empty searches crash or a search term that was thought to yield no results now does."
         );
+        }
     }
 }
