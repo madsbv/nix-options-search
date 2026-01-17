@@ -5,6 +5,7 @@ use crate::{
         consts::{self, BUILTIN_SOURCES},
         SourceConfig,
     },
+    finder::Finder,
     source::{Source, SourceData},
 };
 use std::{
@@ -165,6 +166,22 @@ fn read_source_html_from_testdata(se: SourceExpectations, base_dir: &Path) -> So
         version_html,
         expectations: se,
     }
+}
+
+// Common test helpers for creating test instances with stored data
+
+pub fn create_test_finder(source: &Source, data: &SourceData) -> Finder {
+    let data = data.clone();
+    let data_fn = Box::new(move || Ok(data.clone()));
+    Finder::new_with_data_fn(source.clone(), Some(data_fn), None, None)
+}
+
+/// Create test finders for all builtin sources
+pub fn create_test_finders() -> Vec<Finder> {
+    BUILTIN_SOURCES_WITH_HTML
+        .iter()
+        .map(|swh| create_test_finder(&swh.source, &swh.data))
+        .collect()
 }
 
 #[test]

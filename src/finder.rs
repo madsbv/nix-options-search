@@ -37,7 +37,7 @@ impl Finder {
     }
 
     // Allows for overriding the data source, namely for tests that specifically want to acquire data online or from cache.
-    fn new_with_data_fn(
+    pub(crate) fn new_with_data_fn(
         source: Source,
         data_fn: Option<Box<dyn Fn() -> Result<SourceData> + Send>>,
         cache_dir: Option<&'static Path>,
@@ -178,39 +178,22 @@ fn new_searcher(
 mod tests {
 
     use super::*;
-    use crate::test_utils::BUILTIN_SOURCES_WITH_HTML;
+    use crate::test_utils::{create_test_finders, BUILTIN_SOURCES_WITH_HTML};
 
     /// Check that we can get, parse and query all online data sources with at least some results.
     #[test]
     fn test_finders() {
-        let mut handles = vec![];
-        for swh in BUILTIN_SOURCES_WITH_HTML.iter() {
-            let source = swh.source.clone();
-            handles.push((
-                source.clone(),
-                std::thread::spawn(move || test_finder_with_data(&source, &swh.data)),
-            ));
-        }
-        for h in handles {
-            assert!(
-                h.1.join().is_ok(),
-                "Searching with Finder for {} failed",
-                h.0
+        for mut finder in create_test_finders() {
+            assert_ne!(
+                finder
+                    .find_blocking("s", Some(5))
+                    .expect("find_blocking should not fail")
+                    .len(),
+                0,
+                "Searching with finder from {} failed",
+                finder.source
             );
         }
-    }
-
-    fn test_finder_with_data(source: &Source, data: &SourceData) {
-        let data = data.clone();
-        let data_fn = Box::new(move || Ok(data.clone()));
-        let mut f = Finder::new_with_data_fn(source.clone(), Some(data_fn), None, None);
-        assert_ne!(
-            f.find_blocking("s", Some(5))
-                .expect("find_blocking should not fail")
-                .len(),
-            0,
-            "Searching with finder from {source} failed"
-        );
     }
 
     #[test]

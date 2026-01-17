@@ -51,6 +51,22 @@ impl App {
         }
     }
 
+    // Test-only constructor that follows same internal logic as production
+    #[cfg(test)]
+    pub(crate) fn new_with_test_data() -> App {
+        use crate::test_utils::create_test_finders;
+
+        App {
+            search_string: String::new(),
+            pages: create_test_finders(),
+            active_page: 0,
+            input_status: InputStatus::Change,
+            result_list_state: ListState::default(),
+            selected_item: None,
+            exit: false,
+        }
+    }
+
     fn init_search(&mut self) {
         assert!(self.active_page < self.pages.len());
         self.pages[self.active_page].init_search(&self.search_string, self.input_status);
@@ -332,13 +348,10 @@ mod tests {
         assert!(app.exit);
     }
 
-    // Tests against internet-acquired HTML if possible
+    // Tests against stored test data to ensure search functionality works across all sources
     #[test]
-    #[ignore = "flaky and expensive"]
-    #[cfg(feature = "online-tests")]
     fn search_each_tab() {
-        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
-        let mut app = App::new(&CONFIG);
+        let mut app = App::new_with_test_data();
         // Make sure we start at the first tab
         for _ in 0..app.active_page {
             app.handle_key_event(KeyCode::Left.into());
