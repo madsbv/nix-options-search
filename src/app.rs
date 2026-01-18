@@ -1,7 +1,8 @@
 use crate::config::AppConfig;
+use crate::finder::{Finder, InputStatus};
 use crate::opt_display::OptListItem;
 use crate::parsing::OptText;
-use crate::search::{Finder, InputStatus, Source};
+use crate::source::Source;
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
@@ -50,6 +51,22 @@ impl App {
         }
     }
 
+    // Test-only constructor that follows same internal logic as production
+    #[cfg(test)]
+    pub(crate) fn new_with_test_data() -> App {
+        use crate::test_utils::create_test_finders;
+
+        App {
+            search_string: String::new(),
+            pages: create_test_finders(),
+            active_page: 0,
+            input_status: InputStatus::Change,
+            result_list_state: ListState::default(),
+            selected_item: None,
+            exit: false,
+        }
+    }
+
     fn init_search(&mut self) {
         assert!(self.active_page < self.pages.len());
         self.pages[self.active_page].init_search(&self.search_string, self.input_status);
@@ -62,7 +79,7 @@ impl App {
     }
 
     // For testing
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn search_blocking(
         &mut self,
         max: Option<usize>,
@@ -331,12 +348,10 @@ mod tests {
         assert!(app.exit);
     }
 
-    // Tests against internet-acquired HTML if possible
+    // Tests against stored test data to ensure search functionality works across all sources
     #[test]
-    #[cfg(feature = "online-tests")]
     fn search_each_tab() {
-        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
-        let mut app = App::new(&CONFIG);
+        let mut app = App::new_with_test_data();
         // Make sure we start at the first tab
         for _ in 0..app.active_page {
             app.handle_key_event(KeyCode::Left.into());
@@ -350,6 +365,32 @@ mod tests {
                     .len(),
                 0,
                 "on page {}: {}",
+                app.active_page,
+                app.pages[app.active_page].name()
+            );
+            app.handle_key_event(KeyCode::Right.into());
+        }
+    }
+
+    /// Tests against actual online data to validate production functionality across all sources
+    #[cfg(feature = "online-tests")]
+    #[test]
+    fn search_each_tab_online() {
+        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
+        let mut app = App::new(&CONFIG);
+        // Make sure we start at the first tab
+        for _ in 0..app.active_page {
+            app.handle_key_event(KeyCode::Left.into());
+        }
+        app.handle_key_event(KeyCode::Char('s').into());
+        for i in 0..app.pages.len() {
+            assert_eq!(app.active_page, i);
+            assert_ne!(
+                app.search_blocking(Some(10))
+                    .expect("online search should work")
+                    .len(),
+                0,
+                "Online search failed on page {}: {}",
                 app.active_page,
                 app.pages[app.active_page].name()
             );
