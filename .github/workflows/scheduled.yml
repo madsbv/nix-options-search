@@ -29,12 +29,35 @@ jobs:
               run: cargo generate-lockfile
             - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
             - name: cargo test --locked
-              run: cargo test --locked --all-features --all-targets
+              run: cargo test --locked --all-targets
+
+    # Weekly online canary to validate production functionality
+    online-canary:
+        runs-on: ubuntu-latest
+        name: Online Canary - All Sources
+        timeout-minutes: 15
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # tag=v6.0.1
+              with:
+                  submodules: true
+                  persist-credentials: false
+            - name: Install beta
+              if: hashFiles('Cargo.lock') != ''
+              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              with:
+                  toolchain: stable
+
+            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+
+            - name: Run online canary tests
+              run: cargo test --locked --all-features --test online_tests
+
     # https://twitter.com/alcuadrado/status/1571291687837732873
     update:
-        # This action checks that updating the dependencies of this crate to the latest available that
+        # This action checks that updating dependencies of this crate to the latest available that
         # satisfy the versions in Cargo.toml does not break this crate. This is important as consumers
-        # of this crate will generally use the latest available crates. This is subject to the standard
+        # of this crate will generally use the latest available crates. This is subject to standard
         # Cargo semver rules (i.e cargo does not update to a new major version unless explicitly told
         # to).
         runs-on: ubuntu-latest
@@ -58,6 +81,6 @@ jobs:
             - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
             - name: cargo test
               if: hashFiles('Cargo.lock') != ''
-              run: cargo test --locked --all-features --all-targets
+              run: cargo test --locked --all-targets
               env:
                   RUSTFLAGS: -D deprecated

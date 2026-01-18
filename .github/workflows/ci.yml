@@ -14,7 +14,7 @@ concurrency:
 jobs:
     test:
         runs-on: ubuntu-latest
-        name: ubuntu / ${{ matrix.toolchain }} --all-features
+        name: ubuntu / ${{ matrix.toolchain }}
         strategy:
             matrix:
                 # run on stable and beta to ensure that tests won't break on the next version of the rust
@@ -36,8 +36,8 @@ jobs:
               run: cargo generate-lockfile
             - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
             # https://twitter.com/jonhoo/status/1571290371124260865
-            - name: cargo test --locked --all-features
-              run: cargo test --locked --all-features --all-targets
+            - name: cargo test --locked
+              run: cargo test --locked --all-targets
     rustfmt:
         name: Rustfmt
         runs-on: ubuntu-latest
@@ -170,7 +170,7 @@ jobs:
               run: cargo +nightly update -Zdirect-minimal-versions
             - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
             - name: cargo test
-              run: cargo test --locked --all-features --all-targets
+              run: cargo test --locked --all-targets
 
     os-check:
         # run cargo test on mac and windows
