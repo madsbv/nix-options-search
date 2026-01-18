@@ -371,4 +371,30 @@ mod tests {
             app.handle_key_event(KeyCode::Right.into());
         }
     }
+
+    /// Tests against actual online data to validate production functionality across all sources
+    #[cfg(feature = "online-tests")]
+    #[test]
+    fn search_each_tab_online() {
+        static CONFIG: LazyLock<AppConfig> = LazyLock::new(AppConfig::default);
+        let mut app = App::new(&CONFIG);
+        // Make sure we start at the first tab
+        for _ in 0..app.active_page {
+            app.handle_key_event(KeyCode::Left.into());
+        }
+        app.handle_key_event(KeyCode::Char('s').into());
+        for i in 0..app.pages.len() {
+            assert_eq!(app.active_page, i);
+            assert_ne!(
+                app.search_blocking(Some(10))
+                    .expect("online search should work")
+                    .len(),
+                0,
+                "Online search failed on page {}: {}",
+                app.active_page,
+                app.pages[app.active_page].name()
+            );
+            app.handle_key_event(KeyCode::Right.into());
+        }
+    }
 }
