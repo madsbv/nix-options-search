@@ -39,7 +39,7 @@ impl Finder {
     // Allows for overriding the data source, namely for tests that specifically want to acquire data online or from cache.
     pub(crate) fn new_with_data_fn(
         source: Source,
-        data_fn: Option<Box<dyn Fn() -> Result<SourceData> + Send>>,
+        data_fn: Option<Box<dyn FnOnce() -> Result<SourceData> + Send>>,
         cache_dir: Option<&'static Path>,
         cache_duration: Option<Duration>,
     ) -> Self {
@@ -141,7 +141,7 @@ impl Finder {
 
 /// Create a searcher with concurrent parsing and injection of data. Getting data (either through HTTP or cached HTML) and injecting it into Nucleo is done in a separate thread, so we can return the searcher quickly instead of blocking.
 fn new_searcher(
-    data_fn: Box<dyn Fn() -> Result<SourceData> + Send>,
+    data_fn: Box<dyn FnOnce() -> Result<SourceData> + Send>,
     version: Arc<OnceLock<String>>,
     notify: Arc<dyn Fn() + Sync + Send>,
 ) -> (Nucleo<OptText>, JoinHandle<()>) {

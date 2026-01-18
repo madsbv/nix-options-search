@@ -172,7 +172,7 @@ fn read_source_html_from_testdata(se: SourceExpectations, base_dir: &Path) -> So
 
 pub fn create_test_finder(source: &Source, data: &SourceData) -> Finder {
     let data = data.clone();
-    let data_fn = Box::new(move || Ok(data.clone()));
+    let data_fn = Box::new(move || Ok(data));
     Finder::new_with_data_fn(source.clone(), Some(data_fn), None, None)
 }
 

@@ -51,7 +51,7 @@ jobs:
             - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
 
             - name: Run online canary tests
-              run: cargo test --locked --all-features --test online_tests
+              run: cargo test --locked --all-features
 
     # https://twitter.com/alcuadrado/status/1571291687837732873
     update:
