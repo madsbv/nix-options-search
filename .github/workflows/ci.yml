@@ -111,7 +111,7 @@ jobs:
         # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
         strategy:
             matrix:
-                msrv: ["1.85.1"] # html2text@0.16.4 requires rustc 1.85
+                msrv: ["1.88.0"] # instability@0.3.11 requires rustc 1.88
         name: ubuntu / msrv = ${{ matrix.msrv }}
         steps:
             - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # tag=v6.0.1
