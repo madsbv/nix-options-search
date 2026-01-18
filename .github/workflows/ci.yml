@@ -207,6 +207,6 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install nix
-              uses: DeterminateSystems/determinate-nix-action@b3e3f405539b332fcb96794525f35fb10c230baa
+              uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be
             - name: Build package with nix
               run: nix build .
