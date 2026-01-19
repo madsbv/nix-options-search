@@ -30,7 +30,7 @@ lazy-regex = { version = "3.5.1", features = ["lite"] }
 figment = { version = "0.10.19", features = ["env", "toml"] }
 nucleo = "0.5.0"
 open = "5.3.3"
-ratatui = "0.29.0"
+ratatui = "0.30.0"
 serde = { version = "1.0.228", features = ["derive"] }
 strum = { version = "0.27.0", features = ["derive"] }
 tempfile = "3.24.0"
