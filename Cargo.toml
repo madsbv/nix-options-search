@@ -39,7 +39,7 @@ tracing = "0.1.44"
 toml = "0.9.10"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.22", features = ["ansi", "env-filter"] }
-tui-widget-list = "0.13.3"
+tui-widget-list = "0.15.0"
 ureq = "3.0.5"
 zstd = "0.13.2"
 humantime-serde = "1.1.1"
