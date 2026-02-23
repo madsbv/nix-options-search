@@ -21,26 +21,26 @@ online-tests = []
 
 [dependencies]
 bitcode = "0.6.9"
-clap = { version = "4.5.54", features = ["derive"] }
+clap = { version = "4.5.58", features = ["derive"] }
 color-eyre = "0.6.3"
 crossterm = "0.29.0"
 directories = "6.0.0"
-html2text = "0.16.5"
-lazy-regex = { version = "3.5.1", features = ["lite"] }
+html2text = "0.16.7"
+lazy-regex = { version = "3.6.0", features = ["lite"] }
 figment = { version = "0.10.19", features = ["env", "toml"] }
 nucleo = "0.5.0"
 open = "5.3.3"
 ratatui = "0.29.0"
 serde = { version = "1.0.228", features = ["derive"] }
 strum = { version = "0.27.0", features = ["derive"] }
-tempfile = "3.24.0"
+tempfile = "3.25.0"
 tl = "0.7.8"
 tracing = "0.1.44"
 toml = "0.9.10"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.22", features = ["ansi", "env-filter"] }
 tui-widget-list = "0.13.3"
-ureq = "3.0.5"
+ureq = "3.2.0"
 zstd = "0.13.2"
 humantime-serde = "1.1.1"
 
