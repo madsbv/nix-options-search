@@ -34,7 +34,7 @@ jobs:
               # enable this ci template to run regardless of whether the lockfile is checked in or not
               if: hashFiles('Cargo.lock') == ''
               run: cargo generate-lockfile
-            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+            - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
             # https://twitter.com/jonhoo/status/1571290371124260865
             - name: cargo test --locked
               run: cargo test --locked --all-targets
@@ -52,7 +52,7 @@ jobs:
               with:
                   toolchain: stable
                   components: rustfmt
-            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+            - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
             - name: Check formatting
               run: cargo fmt --all --check
     clippy:
@@ -77,7 +77,7 @@ jobs:
               with:
                   toolchain: ${{ matrix.toolchain }}
                   components: clippy
-            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+            - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
             - name: cargo clippy
               uses: giraffate/clippy-action@13b9d32482f25d29ead141b79e7e04e7900281e0 # tag=v1.0.1
               with:
@@ -99,7 +99,7 @@ jobs:
               uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
               with:
                   toolchain: stable
-            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+            - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
             - name: Check documentation
               env:
                   RUSTDOCFLAGS: -D warnings
@@ -122,7 +122,7 @@ jobs:
               uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
               with:
                   toolchain: ${{ matrix.msrv }}
-            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+            - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
             - name: cargo +${{ matrix.msrv }} check
               run: cargo check
 
@@ -168,7 +168,7 @@ jobs:
               run: rustup default stable
             - name: cargo update -Zdirect-minimal-versions
               run: cargo +nightly update -Zdirect-minimal-versions
-            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+            - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
             - name: cargo test
               run: cargo test --locked --all-targets
 
@@ -192,7 +192,7 @@ jobs:
             - name: cargo generate-lockfile
               if: hashFiles('Cargo.lock') == ''
               run: cargo generate-lockfile
-            - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # tag=v2.8.2
+            - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
             - name: cargo test
               # Skip time-consuming online tests
               run: cargo test --locked --all-targets
@@ -207,6 +207,6 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install nix
-              uses: DeterminateSystems/determinate-nix-action@131015bad844610e5e6300f8a143bf625d3e74f4
+              uses: DeterminateSystems/determinate-nix-action@a18f73c54ca8525de051e73c31512a67f44df919
             - name: Build package with nix
               run: nix build .
