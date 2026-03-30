@@ -71,7 +71,7 @@ jobs:
                     shasum -a 256 $RELEASE_NAME.tar.gz > $RELEASE_NAME.sha256
                   fi
             - name: Releasing assets
-              uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # tag=v2.5.0
+              uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # tag=v2.6.1
               with:
                   files: |
                       target/${{ matrix.job.target }}/release/nix-options-search-*.tar.gz
@@ -95,7 +95,7 @@ jobs:
               uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
               with:
                   toolchain: stable
-            - uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # tag=v1.0.3
+            - uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # tag=v1.0.4
               id: auth
             - run: cargo publish
               env:
