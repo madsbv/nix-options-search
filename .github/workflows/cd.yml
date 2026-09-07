@@ -71,7 +71,7 @@ jobs:
                     shasum -a 256 $RELEASE_NAME.tar.gz > $RELEASE_NAME.sha256
                   fi
             - name: Releasing assets
-              uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # tag=v3.0.0
+              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # tag=v3.0.3
               with:
                   files: |
                       target/${{ matrix.job.target }}/release/nix-options-search-*.tar.gz
