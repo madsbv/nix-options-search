@@ -27,7 +27,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install ${{ matrix.toolchain }}
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: ${{ matrix.toolchain }}
             - name: cargo generate-lockfile
@@ -48,7 +48,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: stable
                   components: rustfmt
@@ -73,7 +73,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install ${{ matrix.toolchain }}
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: ${{ matrix.toolchain }}
                   components: clippy
@@ -96,7 +96,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install stable
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: stable
             - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
@@ -119,7 +119,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install ${{ matrix.msrv }}
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: ${{ matrix.msrv }}
             - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # tag=v2.9.1
@@ -157,11 +157,11 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install stable
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: stable
             - name: Install nightly for -Zdirect-minimal-versions
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: nightly
             - name: rustup default stable
@@ -186,7 +186,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install stable
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # branch=master
               with:
                   toolchain: stable
             - name: cargo generate-lockfile
