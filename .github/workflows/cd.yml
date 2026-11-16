@@ -47,7 +47,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch=master
               with:
                   toolchain: stable
                   targets: ${{ matrix.job.target }}
@@ -92,7 +92,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+              uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch=master
               with:
                   toolchain: stable
             - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # tag=v1.0.6
