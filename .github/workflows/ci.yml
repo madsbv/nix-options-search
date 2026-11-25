@@ -25,7 +25,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install nix
-              uses: DeterminateSystems/determinate-nix-action@92957199488000b908fdad19f63711000965d8f3
+              uses: DeterminateSystems/determinate-nix-action@16f94ba7aae399b9f9077c254b6719ec6de7e3e3
             - name: Cache nix builds
               uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # tag=v15
             # Explicit list instead of `nix flake check`, so the stable test is not built twice
@@ -50,7 +50,7 @@ jobs:
                   submodules: true
                   persist-credentials: false
             - name: Install nix
-              uses: DeterminateSystems/determinate-nix-action@92957199488000b908fdad19f63711000965d8f3
+              uses: DeterminateSystems/determinate-nix-action@16f94ba7aae399b9f9077c254b6719ec6de7e3e3
             - name: Cache nix builds
               uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # tag=v15
             - name: Run stable tests and build package
