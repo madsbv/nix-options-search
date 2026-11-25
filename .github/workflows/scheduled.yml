@@ -21,7 +21,7 @@ jobs:
           submodules: true
           persist-credentials: false
       - name: Install nightly
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch=master
         with:
           toolchain: nightly
       - name: cargo generate-lockfile
@@ -51,7 +51,7 @@ jobs:
           persist-credentials: false
       - name: Install beta
         if: hashFiles('Cargo.lock') != ''
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch=master
         with:
           toolchain: beta
       - name: cargo update
