@@ -39,7 +39,7 @@ If the required subsection does not exist yet under **Unreleased**, create it!
 
 ### Set up
 
-This is no different than other Rust projects.
+This is no different than other Rust projects. With Nix flakes enabled, `nix develop` also gives the nightly toolchain and linters that the checks use.
 
 ```shell
 git clone https://github.com/madsbv/nix-options-search
@@ -61,7 +61,7 @@ cargo test
   cargo clippy --all-targets --all-features --workspace
   ```
 
-- Run all tests:
+- Run all tests (`--all-features` also enables the network tests behind `online-tests`):
 
   ```shell
   cargo test --all-features --workspace
@@ -77,4 +77,10 @@ cargo test
 
   ```shell
   cargo fmt --all
+  ```
+
+- Run the Nix checks that CI runs (formatting, clippy, docs, lint, and tests on both the nightly and the nixpkgs stable toolchain):
+
+  ```shell
+  nix flake check
   ```
