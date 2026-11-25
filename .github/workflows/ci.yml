@@ -12,98 +12,52 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
     cancel-in-progress: true
 jobs:
-    test:
+    nix:
         runs-on: ubuntu-latest
-        name: ubuntu / ${{ matrix.toolchain }}
-        strategy:
-            matrix:
-                # run on stable and beta to ensure that tests won't break on the next version of the rust
-                # toolchain
-                toolchain: [stable, beta]
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
-              with:
-                  submodules: true
-                  persist-credentials: false
-            - name: Install ${{ matrix.toolchain }}
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
-              with:
-                  toolchain: ${{ matrix.toolchain }}
-            - name: cargo generate-lockfile
-              # enable this ci template to run regardless of whether the lockfile is checked in or not
-              if: hashFiles('Cargo.lock') == ''
-              run: cargo generate-lockfile
-            - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # tag=v2.9.3
-            # https://twitter.com/jonhoo/status/1571290371124260865
-            - name: cargo test --locked
-              run: cargo test --locked --all-targets
-    rustfmt:
-        name: Rustfmt
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
-              with:
-                  submodules: true
-                  persist-credentials: false
-            - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
-              with:
-                  toolchain: stable
-                  components: rustfmt
-            - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # tag=v2.9.3
-            - name: Check formatting
-              run: cargo fmt --all --check
-    clippy:
-        runs-on: ubuntu-latest
-        name: ${{ matrix.toolchain }} / clippy
+        name: nix / nightly checks
         permissions:
             contents: read
-            checks: write # For reviewdog through giraffate/clippy-action
-
-        strategy:
-            fail-fast: false
-            matrix:
-                # Get early warning of new lints which are regularly introduced in beta channels.
-                toolchain: [stable, beta]
-        steps:
-            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
-              with:
-                  submodules: true
-                  persist-credentials: false
-            - name: Install ${{ matrix.toolchain }}
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
-              with:
-                  toolchain: ${{ matrix.toolchain }}
-                  components: clippy
-            - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # tag=v2.9.3
-            - name: cargo clippy
-              uses: giraffate/clippy-action@13b9d32482f25d29ead141b79e7e04e7900281e0 # tag=v1.0.1
-              with:
-                  reporter: "github-pr-check"
-                  github_token: ${{ secrets.GITHUB_TOKEN }}
-                  clippy_flags: --all-targets --all-features --workspace -- -D warnings
-                  tool_name: ${{ matrix.toolchain  }} / clippy report
-
-    docs:
-        name: Docs
-        runs-on: ubuntu-latest
+            id-token: write # Required by magic-nix-cache
         steps:
             - name: Checkout repository
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
               with:
                   submodules: true
                   persist-credentials: false
-            - name: Install stable
-              uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # branch=master
+            - name: Install nix
+              uses: DeterminateSystems/determinate-nix-action@92957199488000b908fdad19f63711000965d8f3
+            - name: Cache nix builds
+              uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # tag=v15
+            # Explicit list instead of `nix flake check`, so the stable test is not built twice
+            - name: Run nightly checks
+              run: >-
+                  nix build --no-link --keep-going
+                  .#checks.x86_64-linux.nox-fmt
+                  .#checks.x86_64-linux.nox-clippy
+                  .#checks.x86_64-linux.nox-test
+                  .#checks.x86_64-linux.nox-doc
+                  .#checks.x86_64-linux.nox-lint
+    nix-stable:
+        runs-on: ubuntu-latest
+        name: nix / stable test and package
+        permissions:
+            contents: read
+            id-token: write # Required by magic-nix-cache
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
               with:
-                  toolchain: stable
-            - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # tag=v2.9.3
-            - name: Check documentation
-              env:
-                  RUSTDOCFLAGS: -D warnings
-              run: cargo doc --no-deps --document-private-items --all-features --workspace --examples
+                  submodules: true
+                  persist-credentials: false
+            - name: Install nix
+              uses: DeterminateSystems/determinate-nix-action@92957199488000b908fdad19f63711000965d8f3
+            - name: Cache nix builds
+              uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # tag=v15
+            - name: Run stable tests and build package
+              run: >-
+                  nix build --no-link --keep-going
+                  .#checks.x86_64-linux.nox-test-stable
+                  .#packages.x86_64-linux.default
     msrv:
         # check that we can build using the minimal rust version that is specified by this crate
         runs-on: ubuntu-latest
@@ -196,17 +150,3 @@ jobs:
             - name: cargo test
               # Skip time-consuming online tests
               run: cargo test --locked --all-targets
-
-    nix:
-        runs-on: ubuntu-latest
-        name: nix build
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
-              with:
-                  submodules: true
-                  persist-credentials: false
-            - name: Install nix
-              uses: DeterminateSystems/determinate-nix-action@92957199488000b908fdad19f63711000965d8f3
-            - name: Build package with nix
-              run: nix build .
