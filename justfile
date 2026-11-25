@@ -42,8 +42,9 @@ check: check-git lint
 	nix flake check
 
 alias ca := check-all
+# Evaluate flake outputs for all systems without building
 check-all *args: check-git lint
-	nix flake check --all-systems {{args}}
+	nix flake check --all-systems --no-build {{args}}
 
 alias w := watch
 watch *args:
