@@ -145,14 +145,14 @@
           default = app;
         };
 
-        devShells.default = pkgs.mkShell {
-          CARGO_INSTALL_ROOT = "${toString ./.}/.cargo";
-
-          packages = with pkgs; [
-            deadnix
-            statix
-            nixfmt-tree
-            just
+        devShells.default = craneNightly.devShell {
+          # Don't pass `checks` here: it would pull the nixpkgs toolchain into the shell
+          packages = [
+            nightly
+            pkgs.deadnix
+            pkgs.statix
+            pkgs.nixfmt-tree
+            pkgs.just
           ];
         };
       }
