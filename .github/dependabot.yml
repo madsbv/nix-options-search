@@ -31,3 +31,11 @@ updates:
       open-pull-requests-limit: 10
       cooldown:
           default-days: 7
+    - package-ecosystem: "nix"
+      directory: "/"
+      # Updates flake.lock inputs; opens one pull request per outdated input
+      schedule:
+          interval: "weekly"
+      open-pull-requests-limit: 10
+      cooldown:
+          default-days: 7
