@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bump minimum supported Rust version to 1.88.0
 
+### Removed
+- `default.nix`. Use the flake instead (`nix build`, `nix run`)
+
 ## [0.3.5] - 2025-12-08
 - Fix name of default binary in flake
 - Fix nixos-unstable source links pointing to non-existent future release branches

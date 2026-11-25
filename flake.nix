@@ -4,29 +4,59 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; # We want to use packages from the binary cache
     flake-utils.url = "github:numtide/flake-utils";
-    gitignore = {
-      url = "github:hercules-ci/gitignore.nix";
-      flake = false;
-    };
+    crane.url = "github:ipetkov/crane";
   };
 
   outputs =
-    inputs@{ nixpkgs, flake-utils, ... }:
+    {
+      nixpkgs,
+      flake-utils,
+      crane,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        gitignoreSrc = pkgs.callPackage inputs.gitignore { };
+        inherit (pkgs) lib;
+
+        craneLib = crane.mkLib pkgs;
+        src = lib.fileset.toSource {
+          root = ./.;
+          fileset = lib.fileset.unions [
+            (craneLib.fileset.commonCargoSources ./.)
+            ./testing/data # Read by the tests through CARGO_MANIFEST_DIR
+          ];
+        };
+
+        nox = craneLib.buildPackage {
+          inherit src;
+          strictDeps = true;
+          doCheck = false; # Tests run as a separate check
+
+          meta = {
+            homepage = "https://github.com/madsbv/nix-options-search";
+            description = "A simple command-line tool to look up options for configuring nix-darwin, nixOS, and home-manager quickly, with fuzzy finding.";
+            license = [
+              lib.licenses.mit
+              lib.licenses.asl20
+            ];
+            maintainers = [ lib.maintainers.madsbv ];
+            mainProgram = "nox";
+          };
+        };
+
+        app = flake-utils.lib.mkApp { drv = nox; };
       in
       {
-        packages = rec {
-          nox = pkgs.callPackage ./default.nix { inherit gitignoreSrc pkgs; };
+        packages = {
+          inherit nox;
           default = nox;
         };
 
-        apps = rec {
-          nox = flake-utils.lib.mkApp { drv = import ./default.nix { inherit gitignoreSrc pkgs; }; };
-          default = nox;
+        apps = {
+          nox = app;
+          default = app;
         };
 
         devShells.default = pkgs.mkShell {
