@@ -55,10 +55,10 @@ opt-level = 1
 lto = "thin"
 
 [lints.rust]
-deprecated-safe = {level = "deny", priority = 0}
-future-incompatible = {level = "deny", priority = 0}
-keyword-idents = {level = "deny", priority = 0}
-let-underscore = {level = "warn", priority = 0}
+deprecated_safe = {level = "deny", priority = 0}
+future_incompatible = {level = "deny", priority = 0}
+keyword_idents = {level = "deny", priority = 0}
+let_underscore = {level = "warn", priority = 0}
 unused = {level = "warn", priority = -1}
 
 [lints.clippy]
